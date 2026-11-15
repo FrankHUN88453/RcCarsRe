@@ -58,6 +58,17 @@ Klucz dołączenia, który Discord przekazuje znajomym, zawiera twój adres inte
 tylko ci, których wpuszczasz. Windows może raz zapytać, czy RcCarsRe może używać sieci: zezwól w sieciach, w których
 grasz.
 
+## Świat w wyścigu sieciowym
+
+Życiem trasy kieruje host i wszyscy widzą to, co u hosta: ruch uliczny (ciężarówki, Hummer i BTR ruszają, gdy wysyła
+je host, i jadą tą samą drogą na każdym komputerze; wieża BTR obraca się jak u hosta), ludzi, psy i strażników (gdzie
+stoją i chodzą, ich animację i czy w ogóle są), kraby (gdzie i kiedy krab wychodzi z nory), puszki, piłki i inne
+przedmioty (ich położenie i obrót) oraz serie strażników i wieży (strzały i trafienia w twoje auto). Przedmiot
+popchnięty na twoim komputerze przesuwa się także u hosta. Kopie u pozostałych podążają za hostem z małym opóźnieniem
+(ludzie ok. 0,3 s). Mew, pająków i sępów oryginał nie przesyła: każdy komputer ma własne. Przy najwolniejszym
+ustawieniu połączenia (bpsLevel 0) oryginał nie przesyła ludzi, psów, strażników, przedmiotów ani wieży; przedmioty
+wymagają bpsLevel 2 lub wyższego.
+
 ## Dwie kopie na jednym komputerze (do testów)
 
     cd /d D:\Games\RcCars

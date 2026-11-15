@@ -33,6 +33,13 @@ w czasie rzeczywistym.*
   przejrzyste płycizny)
 - Ustawienia limitu klatek i VSync (bez ograniczenia do 64 kl./s), licznik FPS
 - Czcionka menu w jakości HD, poprawki HUD dla szerokich ekranów
+- Okluzja otoczenia w przestrzeni ekranu (SSAO), punktowe światła w czasie rzeczywistym przy lampach i latarniach
+- 1280 x 800 (Steam Deck) i każda inna rozdzielczość; menu i HUD skalują się z oknem
+- Kontrolery Xbox, PlayStation 4 i DualSense: wibracje, adaptacyjne spusty DualSense, pasek świetlny podążający
+  za strzałką GPS w wyścigu (żółty w menu), strzały odczuwalne przez haptykę DualSense (eksperymentalnie) i słyszalne w głośniku
+  pada przez USB; przy wyjściu pad wraca do ustawień domyślnych
+- Podzielony ekran dla dwóch graczy (klawiatura i mysz albo dwa pady), kamera sterowana myszą
+- VR przez OpenXR (SteamVR i inne), status w Discordzie w czterech językach
 
 ## Tryb wieloosobowy
 
@@ -53,15 +60,16 @@ restartu. Jak to działa:
 
 Mody mogą zawierać małe skrypty Lua działające w piaskownicy: teksty i obrazy na HUD, dźwięki, zdarzenia okrążeń i
 punktów kontrolnych oraz stronę ustawień w menu Mody. Skrypty działają tylko lokalnie (HUD, dźwięk, dziennik); nie
-mogą zmieniać wyścigu ani plików gry. Dokumentacja z pełnym API i dwoma przykładowymi modami:
+mogą zmieniać wyścigu ani plików gry. Dokumentacja z pełnym API i trzema przykładowymi modami (zdarzenia, kamera, mgła, słońce i woda, wibracje i pasek świetlny, własne statystyki):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 jest używane na licencji MIT ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
 ## Stan prac
 
-Prace trwają. Szybki wyścig i mistrzostwa można rozegrać od początku do końca; zakupy w garażu i tryb
-wieloosobowy przez sieć nie są jeszcze gotowe.
+Prace trwają. Szybki wyścig i mistrzostwa można rozegrać od początku do końca, wyścig sieciowy działa w sieci
+lokalnej, przez bezpośredni IP i przez Internet (UPnP lub przekierowany port, zaproszenia na Discordzie), świat
+hosta widzą wszyscy; zakupy w garażu nie są jeszcze gotowe.
 
 | Obszar | Stan |
 |---|---|
@@ -79,7 +87,7 @@ wieloosobowy przez sieć nie są jeszcze gotowe.
 | Garaż | ekrany działają, zakupy w toku |
 | Podzielony ekran dla dwóch graczy; kontrolery Xbox, PlayStation 4 i DualSense z wibracjami | działa |
 | VR (OpenXR), status w Discordzie | działa |
-| Tryb wieloosobowy: LAN, bezpośredni IP, zaproszenie na Discordzie, UPnP, czat, polecenia serwera i głosowania | działa (ruch uliczny i NPC nie są jeszcze synchronizowane) |
+| Tryb wieloosobowy: LAN, bezpośredni IP, zaproszenie na Discordzie, UPnP, czat, polecenia serwera i głosowania | działa (ruch uliczny, ludzie, psy, strażnicy, kraby, przedmioty i strzały hosta są synchronizowane) |
 | Obsługa modów (folder `mods`, menu Mody, skrypty Lua) | działa |
 
 ## Czego to repozytorium nie będzie zawierać

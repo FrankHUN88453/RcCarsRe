@@ -45,7 +45,8 @@ twarze albo strony czcionek): pojawiają się po własnych plikach gry. Wielkoś
 ## Skrypty
 
 Mod może też zawierać skrypty Lua (`*.lua` w katalogu głównym albo w `scripts\`): teksty i obrazy HUD, dźwięki, własną
-stronę ustawień na ekranie Mods. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md).
+stronę ustawień na ekranie Mods, a także (API 1.1) kamerę, mgłę, słońce, światła, wibracje / pasek świetlny pada
+i własne statystyki, wszystko tylko na twoim komputerze. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md).
 
 ## Formaty
 
@@ -195,5 +196,9 @@ Nic nigdy nie jest zapisywane do folderu `mods` ani folderów gry.
   (`src\modern\vr.c`), ładowany z opóźnieniem; DLL jest dostarczany obok exe.
 - `third_party\lua` 5.4.9: Lua.org, PUC-Rio, MIT (zob. [modding/LUA_LICENSE.txt](modding/LUA_LICENSE.txt)). Budowany
   bez zmian dla skryptów modów.
+- Haptyka DualSense przez Bluetooth (`PadHaptics`): wiedza o protokole pochodzi z SAxense, autor egormanga / Sdore
+  (MPL-2.0, https://github.com/egormanga/SAxense, https://apps.sdore.me/SAxense), jego pierwszego publicznego opisu;
+  układ raportu to nasza własna implementacja (w źródłach nie ma kodu SAxense). Układ kanałów USB opiera się na
+  faktach pokazanych przez streetpea / chiaki-ng; źródłami dla raportów padów były controllers.fandom.com i psdevwiki.
 - Cała reszta obsługi modów (rozpakowywanie zip, dekodery DDS / BC7, konwertery) to własny kod odbudowy; dekodowanie
   PNG (WIC) i MP3 (Media Foundation) to własne komponenty Windows.

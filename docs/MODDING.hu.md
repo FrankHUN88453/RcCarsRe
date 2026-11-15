@@ -45,7 +45,8 @@ benne `BetterSkins\Sound\...`), azt úgy olvassa, mintha az a mappa ott sem lenn
 ## Szkriptek
 
 Egy mod Lua-szkripteket is tartalmazhat (`*.lua` a gyökerében vagy a `scripts\` mappában): HUD-szövegek és képek,
-hangok, saját beállítóoldal a Mods képernyőn. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md).
+hangok, saját beállítóoldal a Mods képernyőn, valamint (API 1.1) kamera, köd, nap, fények, kontroller-rezgés /
+fénysáv és saját statisztikák, mind csak a saját gépeden. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md).
 
 ## Formátumok
 
@@ -203,5 +204,9 @@ A `mods` mappába vagy a játék mappáiba soha semmi nem íródik.
   módhoz (`src\modern\vr.c`), késleltetett betöltéssel; a DLL az exe mellett van.
 - `third_party\lua` 5.4.9: Lua.org, PUC-Rio, MIT (lásd [modding/LUA_LICENSE.txt](modding/LUA_LICENSE.txt)).
   Változatlanul fordul a modszkriptekhez.
+- DualSense haptika Bluetooth-on (`PadHaptics`): a protokoll ismerete a SAxense-ből származik, szerzője egormanga /
+  Sdore (MPL-2.0, https://github.com/egormanga/SAxense, https://apps.sdore.me/SAxense), ez az első nyilvános leírása;
+  a riport felépítése saját megvalósítás (SAxense-kód nincs a forrásban). Az USB-csatornák kiosztása a streetpea /
+  chiaki-ng által mutatott tényeket követi; a padok riportjaihoz a controllers.fandom.com és a psdevwiki volt a forrás.
 - A modtámogatás minden más része (zip kicsomagolás, DDS / BC7 dekóderek, az átalakítók) az újraépítés saját kódja; a
   PNG-dekódolás (WIC) és az MP3-dekódolás (Media Foundation) a Windows saját komponensei.

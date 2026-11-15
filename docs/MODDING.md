@@ -45,7 +45,8 @@ is read as if that folder were not there.
 ## Scripts
 
 A mod can also hold Lua scripts (`*.lua` in its root or in `scripts\`): HUD texts and pictures, sounds, its own
-settings page in the Mods screen. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md).
+settings page in the Mods screen, and (API 1.1) the camera, fog, sun, lights, gamepad rumble / light bar and its own
+statistics, all local to your PC. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md).
 
 ## Formats
 
@@ -192,5 +193,9 @@ Nothing is ever written into the `mods` folder or the game's folders.
   (`src\modern\vr.c`), delay-loaded; the DLL is shipped next to the exe.
 - `third_party\lua` 5.4.9: Lua.org, PUC-Rio, MIT (see [modding/LUA_LICENSE.txt](modding/LUA_LICENSE.txt)). Built
   unchanged for the mod scripts.
+- DualSense haptics over Bluetooth (`PadHaptics`): the protocol knowledge comes from SAxense by egormanga / Sdore
+  (MPL-2.0, https://github.com/egormanga/SAxense, https://apps.sdore.me/SAxense), the first public description of it;
+  the report layout is our own implementation (no SAxense code in the tree). The USB channel layout follows the facts
+  shown by streetpea / chiaki-ng; controllers.fandom.com and psdevwiki were the references for the pads' reports.
 - Everything else of the mod support (zip inflate, DDS / BC7 decoders, the converters) is the rebuild's own code;
   PNG decoding (WIC) and MP3 decoding (Media Foundation) are Windows' own components.

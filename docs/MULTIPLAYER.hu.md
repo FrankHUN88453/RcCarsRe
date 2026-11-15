@@ -59,6 +59,17 @@ A Discord által a barátaidnak átadott csatlakozási kulcs tartalmazza az inte
 csak azok látják, akiket beengedsz. A Windows egyszer megkérdezheti, használhatja-e az RcCarsRe a hálózatot: engedd
 meg azokon a hálózatokon, ahol játszol.
 
+## A világ hálózati versenyben
+
+A pálya életét a host futtatja, és mindenki a hostét látja: a forgalmat (a teherautók, a Hummer és a Btr akkor
+indulnak, amikor a host indítja őket, és minden gépen ugyanazt az utat járják; a Btr tornya úgy fordul, mint a
+hostnál), az embereket, kutyákat és őröket (hol állnak és járnak, az animációjukat, és hogy egyáltalán ott vannak-e),
+a rákokat (hol és mikor bújnak elő), a dobozokat, labdákat és más tárgyakat (helyüket és forgásukat), valamint az őrök
+és a torony sorozatait (a lövéseket és a találatot az autódon). Ha a saját gépeden lökök meg egy tárgyat, a hostnál is
+elmozdul. A többiek példányai egy pillanattal a host mögött követik (az emberek kb. 0,3 s-mal). A sirályokat, pókokat
+és keselyűket nem küldi (ahogy az eredeti sem): minden gép a sajátját futtatja. A leglassabb kapcsolat-beállításnál
+(bpsLevel 0) az eredeti nem küld embert, kutyát, őrt, tárgyat és tornyot; a tárgyakhoz legalább bpsLevel 2 kell.
+
 ## Két példány egy gépen (teszteléshez)
 
     cd /d D:\Games\RcCars

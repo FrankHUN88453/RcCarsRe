@@ -57,6 +57,17 @@ No server of ours is needed: one player hosts, the others connect to the host's 
 The join secret Discord passes to your friends holds your Internet (or LAN) address and port - only friends you let
 join see it. Windows may ask once whether RcCarsRe may use the network: allow it for the networks you play on.
 
+## The world in a network race
+
+The host runs the track's life and everybody sees the host's: the traffic (the trucks, the Hummer and the Btr leave
+when the host's spawner sends them and drive the same path on every PC, the Btr's tower turns as the host's), the
+people, dogs and guards (where they stand and walk, their animation, whether they are there at all), the crabs (where
+and when one comes out of its hole), the cans, balls and other props (their place and spin), and the guards' and the
+tower's machine-gun bursts (the shots and their hits on your car). A prop you hit on your PC is pushed on the host
+too. The others' copies follow the host a fraction of a second behind (people about 0.3 s). Seagulls, spiders and
+vultures are not sent (as in the original): each PC runs its own. With the slowest connection setting (bpsLevel 0)
+the original sends no people, dogs, guards, props or tower at all; props need bpsLevel 2 or more.
+
 ## Two instances on one PC (testing)
 
     cd /d D:\Games\RcCars

@@ -45,7 +45,8 @@ mods\
 ## Скрипты
 
 Мод может также содержать скрипты Lua (`*.lua` в корне или в `scripts\`): тексты и картинки HUD, звуки, собственную
-страницу настроек на экране Mods. См. [modding/LUA_SCRIPTING.ru.md](modding/LUA_SCRIPTING.ru.md).
+страницу настроек на экране Mods, а также (API 1.1) камеру, туман, солнце, свет, вибрацию / световую панель
+геймпада и собственную статистику, всё только на вашем компьютере. См. [modding/LUA_SCRIPTING.ru.md](modding/LUA_SCRIPTING.ru.md).
 
 ## Форматы
 
@@ -194,5 +195,9 @@ mods\
   режима VR (`src\modern\vr.c`) с отложенной загрузкой; DLL поставляется рядом с exe.
 - `third_party\lua` 5.4.9: Lua.org, PUC-Rio, MIT (см. [modding/LUA_LICENSE.txt](modding/LUA_LICENSE.txt)).
   Собирается без изменений для скриптов модов.
+- Хаптика DualSense по Bluetooth (`PadHaptics`): знание протокола взято из SAxense, автор egormanga / Sdore
+  (MPL-2.0, https://github.com/egormanga/SAxense, https://apps.sdore.me/SAxense), его первого публичного описания;
+  формат отчёта реализован нами заново (кода SAxense в исходниках нет). Раскладка каналов USB следует фактам, которые
+  показал streetpea / chiaki-ng; для отчётов геймпадов источниками были controllers.fandom.com и psdevwiki.
 - Всё остальное в поддержке модов (распаковка zip, декодеры DDS / BC7, преобразователи) — собственный код пересборки;
   декодирование PNG (WIC) и MP3 (Media Foundation) — собственные компоненты Windows.

@@ -3,12 +3,13 @@
 **English** | [Magyar](LUA_SCRIPTING.hu.md) | [Русский](LUA_SCRIPTING.ru.md) | [Polski](LUA_SCRIPTING.pl.md)
 
 RcCarsRe can run small Lua scripts that come with a mod. A script can read the race (track, laps, cars,
-positions, lap times), react to events (a lap, a checkpoint, a hit, the water, a respawn, the race end) and do
-local things: draw texts, pictures and boxes on the HUD, play sounds, write to the log and keep its own settings.
+positions, lap times), react to events (a lap, a checkpoint, a hit, a jump, an overtake, the pause, the race end
+...) and do local things: draw texts, pictures and boxes on the HUD, play sounds, move the camera, change the fog,
+the sun and the lights, rumble the gamepad, write to the log and keep its own settings and statistics.
 Scripts cannot change the race, the cars or the game's files.
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)).
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.1**.
 
 ## 1. Overview
 
@@ -16,8 +17,8 @@ The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licen
 - Each mod gets its own Lua state. Mods cannot see each other's global variables.
 - Mods are loaded in the Mods screen's order from the bottom up: the lowest-priority mod first, the top mod last.
 - The game calls the script's global event functions (`onFrame`, `onLap`, ...) when they exist.
-- Everything a script does is local to your computer: HUD, sound, log, its settings file. Scripts never send
-  anything over the network and do not affect other players in a network race.
+- Everything a script does is local to your computer: HUD, sound, camera, fog, lights, gamepad, log, its own files.
+  Scripts never send anything over the network and do not affect other players in a network race.
 
 ## 2. File layout
 
@@ -49,6 +50,10 @@ In `RcCarsRe.ini` (next to `RcCarsRe.exe`), section `[Modern]`:
 The Mods screen (main menu, "Mods") switches mods on and off. **Apply** reloads every script at once: the old
 states are closed and the new mod set is loaded.
 
+The gamepad functions also follow your own gamepad settings in the same section: `Rumble` (0 = no vibration),
+`LightBar` (`off` = the light bar is never changed) and `AdaptiveTriggers` (0 = no trigger effects). A script
+cannot switch on what you switched off.
+
 ## 4. Events
 
 Define these as global functions. All are optional.
@@ -66,6 +71,15 @@ Define these as global functions. All are optional.
 | `onRespawn(car)` | a car was put back on the track |
 | `onRaceEnd(results)` | once per race, when the finish script starts (all players finished) |
 | `onOptionChanged(key, value)` | an option was changed on the mod's Settings page |
+| `onBoost(car, on)` | (1.1) a car's booster started (`true`) or stopped (`false`) firing |
+| `onJump(car)` | (1.1) a racing car has been in the air for 0.25 s (small bumps do not count) |
+| `onLand(car, airTime)` | (1.1) that car is on the ground again; `airTime` = seconds in the air |
+| `onOvertake(car, otherCar, newPlace)` | (1.1) `car` took the place `newPlace` from `otherCar` (checked once a frame while racing) |
+| `onCollision(car1, car2, strength, kind)` | (1.1) a contact: `kind` = `"car"` (two racers; `strength` = closing speed in km/h) or `"roadcar"` (a racer against a road car; `car2` is `nil`, `strength` = the racer's speed in km/h). One call per pair while the contact goes on (again after 0.5 s without contact) |
+| `onDogAttack(car)` | (1.1) a dog starts its attack on `car`: it stops and barks at it (the game's dogs do not bite; hitting a dog is a "Great hit!", see `onHit`) |
+| `onPause(kind)` | (1.1) the race was paused: `kind` = `"menu"` (the pause menu) or `"quick"` (the quick pause) |
+| `onResume()` | (1.1) the race goes on after a pause |
+| `onChat(name, text)` | (1.1) a network chat line arrived (your own lines too); `name` = the sender, `""` for server and game lines. Read only |
 
 `car` is the car's number, 1 .. `rc.race().cars`. `results` is a list in place order; each entry has `car`,
 `place`, `finished`, `time`, `bestLap` (missing when none), `lap`, `name`.
@@ -76,12 +90,18 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.0"`) |
+| `rc.version` | the API version string (`"1.1"`) |
 | `rc.modName` | the mod's name |
-| `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = seconds since GO (-1 before). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car |
+| `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes) |
 | `rc.player(n)` | the car table of player `n` (1 or 2, default 1), or `nil` |
 | `rc.screen()` | `{w, h, menu, vr, split}`: render size in pixels, the current screen name, VR on, split screen |
+| `rc.formatTime(seconds, format)` | (1.1) a time as the game writes it: `"m:ss.hh"` like the HUD's timer (`0:15.89`), or with `format = "short"` `"m:ss"` |
+
+Lap times work as in the game: `lap` is 0 until the car crosses the start/finish line for the first time, and
+every lap time (also lap 1's) counts from a crossing of that line. So during lap 1 `lapTime` is smaller than
+`rc.race().time` by the time the car needed from its grid place to the line. The game's lap banner, its
+results and `onLap` use the same lap times.
 
 ### HUD (drawn this frame only: call them every frame from `onFrame`)
 
@@ -104,6 +124,49 @@ At most 512 HUD items per frame and 64 pictures per mod.
 | `rc.log(...)` / `print(...)` | a line in `game_dbg.log` (and the -dev console) |
 | `rc.warn(...)` / `warn(...)` | a warning line (yellow on the -dev console) |
 
+### Camera (1.1)
+
+| Function | Meaning |
+|---|---|
+| `rc.camera{pos =, offset =, target =, car =, fov =, blend =}` | player 1's race camera is replaced until `rc.camera(nil)`. `pos = {x, y, z}`: the camera's place in the world; or `offset = {x, y, z}` with `car`: the place relative to that car in its own axes (x right, y up, z forward); without both the game's camera place stays. `target = {x, y, z}` or `car = i`: what it looks at (without both the game's direction stays). `fov` = vertical field of view in degrees, 10 .. 150 (the game's single view is about 64). `blend` = seconds to glide from the game's camera (0: at once) |
+| `rc.camera(nil)` | back to the game's camera (gliding back over the same `blend` time) |
+| `rc.cameraInfo()` | `{pos = {x, y, z}, dir = {x, y, z}, fov, override, blend}` of player 1's race camera now, or `nil` outside a race. `pos` / `dir` also have `.x .y .z`; `override` = a script camera is on, `blend` 0 .. 1 |
+
+The camera override acts only in a race and only on player 1's view: in the split screen player 2's view keeps
+the game's camera, and in VR the headset moves the camera, so the override is ignored there (one warning in the
+log). The menus' cameras are never changed. Leaving the race and a mod reload switch the override off.
+
+### Weather and mood (1.1)
+
+These change only what your computer draws. Each one is switched off by its reset function, by passing `nil`,
+automatically when the race ends (just before `onRaceEnd`, so a script may set a new mood there), when the race
+is left and when the mods are reloaded. When several mods set the same effect, the last call wins.
+
+| Function | Meaning |
+|---|---|
+| `rc.fog{color =, near =, far =, density =}` | the level's fog: `color` = `0xRRGGBB`; `density` per metre 0 .. 1 (the game's fog is exponential, its levels use 0.006 .. 0.026); `near` / `far` in metres: with them and without `density` the fog is linear from `near` to `far`. Missing fields keep the level's values. The fog shows only when the game's fog is on (Video options) |
+| `rc.resetFog()` | the level's fog again (as `rc.fog(nil)`) |
+| `rc.sun{dir = {x, y, z}}` or `rc.sun{elevation =, azimuth =}` | the sun's direction (towards the sun; angles in degrees, azimuth turning from +z towards +x): the realtime shadows (`Shadows=realtime`) and the cars' light |
+| `rc.resetSun()` | the level's sun again |
+| `rc.lights{intensity =, color =}` | the levels' lamps (`PointLights=1` only): `intensity` 0 .. 8 times their strength, `color` = `0xRRGGBB` instead of their own. Returns `true` when the point lights are on |
+| `rc.resetLights()` | the lamps' own light again |
+| `rc.water{color =, alpha =}` | the sea: `color` = `0xRRGGBB` tint, `alpha` 0 .. 1 times its transparency (with `WaterFx=1` the tint also colours the shallow water) |
+| `rc.resetWater()` | the sea's own look again |
+
+### Gamepad feedback (1.1)
+
+`player` is 1 or 2 (default 1). The functions return `true` when a pad can show the effect now.
+
+| Function | Meaning |
+|---|---|
+| `rc.rumble(strength, seconds, player)` | a vibration pulse: `strength` 0 .. 1 (times your `Rumble` setting), at most 3 seconds. Felt only while the player's car races, like the game's own rumble |
+| `rc.lightBar(r, g, b, player)` | the DualSense / DualShock 4 light bar in this colour (0 .. 255 each) until `rc.lightBar(nil, player)`. It wins over the game's colour; with `LightBar=off` nothing changes |
+| `rc.triggers{right =, left =, player =}` | DualSense adaptive triggers while the player's car races: each trigger `"off"` or `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (a continuous resistance from `start` of the travel). Until `rc.triggers(nil, player)`; ignored with `AdaptiveTriggers=0` |
+| `rc.padSound(name, player, volume)` | the sound (the mod's own file or the game's, as `rc.playSound`) through the pad's own speaker: needs `PadSpeaker=1` and the pad on a USB cable (over Bluetooth the pads have no Windows audio device); never through the PC's speakers. `volume` 0 .. 1, times the effects' volume and `PadSpeakerVolume`. The DualShock 4's USB audio device is its headset output |
+| `rc.padHaptics(name, player, volume)` | the sound (the mod's own file or the game's) on the DualSense's voice-coil haptics, over Bluetooth and USB: needs `PadHaptics=1` and `Rumble` above 0; not while the game is in the background or the race is paused. `volume` 0 .. 1, times `PadHapticsVolume`. A DualShock 4 has no voice coils |
+
+A mod reload ends the script light bar and the trigger effects.
+
 ### Files of the own mod
 
 | Function | Meaning |
@@ -114,7 +177,6 @@ At most 512 HUD items per frame and 64 pictures per mod.
 ### Settings
 
 Stored in `Saves\Mods\<mod>.ini` next to `RcCarsRe.exe` (`<mod>.zip.ini` for a zip mod), section `[Settings]`.
-Nothing else is written.
 
 | Function | Meaning |
 |---|---|
@@ -123,6 +185,20 @@ Nothing else is written.
 | `rc.options{ ... }` | declares the options of the mod's Settings page (below) |
 
 Keys: letters, digits, `_`, `.`, `-`, at most 63 characters. Values: at most 1000 bytes, no line breaks.
+
+### Statistics (1.1)
+
+Kept per mod in `Saves\Mods\<mod>.stats.ini` next to `RcCarsRe.exe` (`<mod>.zip.stats.ini` for a zip mod),
+apart from the settings and never in a player's save. Values are numbers or strings (at most 1000 bytes), at most
+1000 keys per mod, keys as for the settings. The changes are kept in memory and written in one go when the race
+ends, when the race is left, when the mods are reloaded and when the game exits, so the functions can be called
+as often as needed.
+
+| Function | Meaning |
+|---|---|
+| `rc.stats.get(key, default)` | the stored value, or `default` (or `nil`) |
+| `rc.stats.set(key, value)` | stores a number or a string; `nil` deletes the key |
+| `rc.stats.add(key, n)` | adds `n` (default 1) to a number (a missing key counts as 0) and returns the new value |
 
 ### Settings page
 
@@ -150,7 +226,8 @@ rc.options{
 - Memory: 64 MB per mod.
 - Time: `LuaBudget` Lua instructions per event call. Long work inside one library call (for example a huge
   `string.rep` or a complex pattern) is not counted by instructions; keep scripts simple.
-- Scripts never write game files, mod files or player saves; the only file written is the mod's settings file.
+- Scripts never write game files, mod files or player saves; the only files written are the mod's settings and
+  statistics files.
 
 ## 7. Error handling
 
@@ -168,22 +245,32 @@ rc.options{
   `lua <mod> <code>` in that mod's state, and prints the results (an expression such as `lua rc.race().state`
   works too).
 - Hot reload: the `.lua` files of folder mods are checked once a second; when one changes, that mod's scripts are
-  loaded again (zip mods: use Apply).
+  loaded again (zip mods: use Apply). A reload also ends every camera, weather and light-bar override.
 
 ## 9. Examples
 
-`docs/modding/examples/` has two complete mods. Copy a folder into `mods\` next to `RcCarsRe.exe`:
+`docs/modding/examples/` has three complete mods. Copy a folder into `mods\` next to `RcCarsRe.exe`:
 
-- `laptime_hud`: current, last and best lap time of player 1 in a box; options for the best lap, the size and
-  the corner.
+- `laptime_hud`: the race time (the same as the HUD's timer), the current, last and best lap time of player 1 in a
+  box, in the game's time format; options for the best lap, the size and the corner.
 - `checkpoint_sound`: plays the mod's own `sounds\ding.wav` at each checkpoint of player 1 and flashes its number.
+- `drift_air`: when player 1's car lands after a jump it shows the time in the air, gives a short rumble and a
+  light-bar flash, and keeps the best air time per track and the jump count with `rc.stats`.
 
 A minimal script:
 
 ```lua
 function onLap(car, lap, t)
   local p = rc.player(1)
-  if p and p.index == car then rc.log(string.format("lap %d: %.2f s", lap, t)) end
+  if p and p.index == car then rc.log("lap " .. lap .. ": " .. rc.formatTime(t)) end
+end
+
+function onLand(car, air)
+  local p = rc.player(1)
+  if p and p.index == car and air > 0.5 then
+    rc.rumble(0.6, 0.2)
+    rc.stats.add("jumps")
+  end
 end
 
 function onFrame(dt)
@@ -203,4 +290,7 @@ end
 | HUD item not visible | HUD calls work for one frame only: call them from `onFrame`; check the alpha byte of the colour (`0xFF......` is opaque) |
 | "texture ... not found" / "sound ... not found" (yellow) | the file name and folder in the mod; PNG, DDS or CSI pictures; WAV, OGG, MP3 or AU sounds |
 | Text shows `?` | write the script in UTF-8; the game font only has the characters of its language's code page |
+| Lap 1's time is shorter than the HUD's timer | as in the game, lap times count from the start/finish line; the race time is `rc.race().time` |
+| The camera does not change | only in a race, only player 1's view, not in VR |
+| No rumble / light bar | a pad must be connected; `Rumble`, `LightBar`, `AdaptiveTriggers` in `RcCarsRe.ini`; rumble and triggers act only while the car races |
 | Errors on the -dev console | error lines are red, warnings yellow; the same lines are in `game_dbg.log` |

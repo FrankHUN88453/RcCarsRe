@@ -31,6 +31,13 @@ Az RcCarsRe egy rajongói projekt, amely a 2003-as **RC Cars** (Creat Studio) PC
 - Valós idejű tükröződés az autókon és szebb tenger (tükörkép, nézőszögtől függő átlátszóság, átlátszó sekély víz)
 - Képkockasebesség-korlát és VSync beállítások (nincs 64 fps-es plafon), FPS-számláló
 - HD menübetűtípus, HUD-javítások szélesvásznú képernyőre
+- Képtérbeli környezeti takarás (SSAO), valós idejű pontfények a lámpáknál és lámpásoknál
+- 1280 x 800 (Steam Deck) és bármilyen más felbontás; a menük és a HUD az ablakkal méreteződnek
+- Xbox, PlayStation 4 és DualSense kontrollerek: rezgés, DualSense adaptív ravaszok, a verseny GPS-nyilát követő
+  fénycsík (a menükben sárga), a lövések érezhetők a DualSense haptikáján (kísérleti), és USB-n hallhatók a kontroller
+  hangszóróján; kilépéskor a kontroller visszaáll
+- Osztott képernyő két játékosnak (billentyűzet és egér vagy két kontroller), egérrel irányított kamera
+- VR OpenXR-en keresztül (SteamVR és mások), Discord-állapot négy nyelven
 
 ## Többjátékos mód
 
@@ -51,15 +58,16 @@ bekapcsolhatók, és a változás újraindítás nélkül érvényesül. Hogyan 
 
 A modok kis, homokozóban futó Lua szkripteket hozhatnak: HUD szövegek és képek, hangok, kör- és
 ellenőrzőpont-események, és egy beállítási oldal a Modok menüben. A szkriptek csak helyben hatnak (HUD, hang,
-napló); a versenyt és a játék fájljait nem változtathatják meg. Dokumentáció a teljes API-val és két példamoddal:
+napló); a versenyt és a játék fájljait nem változtathatják meg. Dokumentáció a teljes API-val és három példamoddal (események, kamera, köd, nap és víz, rezgés és fénycsík, saját statisztika):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 A Lua 5.4 az MIT-licenc alapján szerepel ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
 ## Állapot
 
-A munka folyamatban van. A gyors verseny és a bajnokság elejétől a végéig lejátszható; a garázsban vásárlás és a
-hálózati többjátékos mód még nem kész.
+A munka folyamatban van. A gyors verseny és a bajnokság elejétől a végéig lejátszható, a hálózati verseny működik
+LAN-on, közvetlen IP-vel és az interneten át (UPnP vagy továbbított port, Discord-meghívás), a host világát mindenki
+látja; a garázsban vásárlás még nem kész.
 
 | Terület | Állapot |
 |---|---|
@@ -77,7 +85,7 @@ hálózati többjátékos mód még nem kész.
 | Garázs | a képernyők működnek, a vásárlás folyamatban |
 | Osztott képernyő két játékosnak; Xbox, PlayStation 4 és DualSense kontrollerek rezgéssel | működik |
 | VR (OpenXR), Discord-állapot | működik |
-| Hálózati többjátékos mód: LAN, közvetlen IP, Discord-meghívás, UPnP, chat, szerverparancsok és szavazás | működik (a forgalom és az NPC-k még nincsenek szinkronban) |
+| Hálózati többjátékos mód: LAN, közvetlen IP, Discord-meghívás, UPnP, chat, szerverparancsok és szavazás | működik (a host forgalma, emberei, kutyái, őrei, rákjai, tárgyai és lövései szinkronban) |
 | Modtámogatás (`mods` mappa, Modok menü, Lua szkriptek) | működik |
 
 ## Amit ez a tároló nem fog tartalmazni

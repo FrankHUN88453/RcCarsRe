@@ -3,12 +3,13 @@
 [English](LUA_SCRIPTING.en.md) | [Magyar](LUA_SCRIPTING.hu.md) | [Русский](LUA_SCRIPTING.ru.md) | **Polski**
 
 RcCarsRe potrafi uruchamiać małe skrypty Lua dołączone do moda. Skrypt może odczytywać wyścig (trasa, okrążenia,
-samochody, pozycje, czasy okrążeń), reagować na zdarzenia (okrążenie, punkt kontrolny, uderzenie, woda, powrót na
-trasę, koniec wyścigu) i robić rzeczy lokalne: rysować teksty, obrazy i prostokąty na HUD, odtwarzać dźwięki, pisać do
-dziennika i przechowywać własne ustawienia. Skrypty nie mogą zmieniać wyścigu, samochodów ani plików gry.
+samochody, pozycje, czasy okrążeń), reagować na zdarzenia (okrążenie, punkt kontrolny, uderzenie, skok,
+wyprzedzenie, pauza, koniec wyścigu ...) i robić rzeczy lokalne: rysować teksty, obrazy i prostokąty na HUD,
+odtwarzać dźwięki, poruszać kamerą, zmieniać mgłę, słońce i oświetlenie, włączać wibracje pada, pisać do dziennika
+oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać wyścigu, samochodów ani plików gry.
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)).
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.1**.
 
 ## 1. Przegląd
 
@@ -16,14 +17,14 @@ Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja M
 - Każdy mod dostaje własny stan Lua. Mody nie widzą nawzajem swoich zmiennych globalnych.
 - Mody są ładowane w kolejności ekranu Mody od dołu do góry: najpierw mod o najniższym priorytecie, na końcu górny.
 - Gra wywołuje globalne funkcje zdarzeń skryptu (`onFrame`, `onLap`, ...), jeśli istnieją.
-- Wszystko, co robi skrypt, zostaje na Twoim komputerze: HUD, dźwięk, dziennik, jego plik ustawień. Skrypty nigdy nic
-  nie wysyłają przez sieć i nie wpływają na innych graczy w wyścigu sieciowym.
+- Wszystko, co robi skrypt, zostaje na twoim komputerze: HUD, dźwięk, kamera, mgła, światła, pad, dziennik, jego
+  własne pliki. Skrypty nigdy niczego nie wysyłają przez sieć i nie wpływają na innych graczy w wyścigu sieciowym.
 
 ## 2. Układ plików
 
 ```
 mods\
-  my_mod\                 (lub my_mod.zip o tej samej zawartości)
+  my_mod\                 (lub my_mod.zip z tą samą zawartością)
     main.lua              skrypt wejściowy (dowolny *.lua w katalogu głównym moda)
     scripts\
       hud.lua             skrypt wejściowy (dowolny *.lua bezpośrednio w scripts\)
@@ -32,8 +33,8 @@ mods\
     textures\icon.png     własny obraz moda dla rc.hudImage(..., "icon", ...)
 ```
 
-- Skrypty wejściowe: wszystkie `*.lua` w katalogu głównym moda i bezpośrednio w `scripts\`, w kolejności nazw.
-- Pliki z głębszych folderów są ładowane tylko przez `rc.include`.
+- Skrypty wejściowe: każdy `*.lua` w katalogu głównym moda i bezpośrednio w `scripts\`, w kolejności nazw.
+- Pliki z głębszych folderów ładuje tylko `rc.include`.
 - Skrypty i teksty są w UTF-8. Teksty są zamieniane na stronę kodową czcionki gry dla bieżącego języka.
 
 ## 3. Włączanie
@@ -42,12 +43,16 @@ W `RcCarsRe.ini` (obok `RcCarsRe.exe`), sekcja `[Modern]`:
 
 | Klucz | Wartości | Domyślnie | Znaczenie |
 |---|---|---|---|
-| `Mods` | 0 / 1 | 1 | foldery mods są czytane (potrzebne dla skryptów) |
+| `Mods` | 0 / 1 | 1 | foldery mods są odczytywane (potrzebne dla skryptów) |
 | `LuaScripts` | 0 / 1 | 1 | skrypty Lua modów działają |
 | `LuaBudget` | 10000 .. 100000000 | 1000000 | ile instrukcji Lua może wykonać jedno wywołanie zdarzenia |
 
 Ekran Mody (menu główne, „Mody”) włącza i wyłącza mody. **Zastosuj** od razu przeładowuje wszystkie skrypty: stare
 stany są zamykane, a nowy zestaw modów jest ładowany.
+
+Funkcje pada respektują też twoje własne ustawienia pada w tej samej sekcji: `Rumble` (0 = bez wibracji),
+`LightBar` (`off` = pasek świetlny nigdy się nie zmienia) i `AdaptiveTriggers` (0 = bez efektów spustów). Skrypt
+nie może włączyć tego, co wyłączyłeś.
 
 ## 4. Zdarzenia
 
@@ -66,6 +71,15 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 | `onRespawn(car)` | samochód został odstawiony na trasę |
 | `onRaceEnd(results)` | raz na wyścig, gdy startuje skrypt mety (wszyscy gracze dojechali) |
 | `onOptionChanged(key, value)` | na stronie Ustawienia moda zmieniono opcję |
+| `onBoost(car, on)` | (1.1) dopalacz samochodu zaczął (`true`) lub przestał (`false`) działać |
+| `onJump(car)` | (1.1) samochód w wyścigu jest od 0,25 s w powietrzu (małe wyboje się nie liczą) |
+| `onLand(car, airTime)` | (1.1) ten samochód znów jest na ziemi; `airTime` = sekundy w powietrzu |
+| `onOvertake(car, otherCar, newPlace)` | (1.1) `car` zajął miejsce `newPlace`, wyprzedzając `otherCar` (sprawdzane raz na klatkę w trakcie wyścigu) |
+| `onCollision(car1, car2, strength, kind)` | (1.1) kontakt: `kind` = `"car"` (dwóch zawodników; `strength` = prędkość zbliżania w km/h) lub `"roadcar"` (zawodnik i samochód drogowy; `car2` to `nil`, `strength` = prędkość zawodnika w km/h). Jedno wywołanie na parę, dopóki kontakt trwa (ponownie po 0,5 s bez kontaktu) |
+| `onDogAttack(car)` | (1.1) pies zaczyna atak na `car`: zatrzymuje się i szczeka na niego (psy w grze nie gryzą; potrącenie psa to „Great hit!”, zob. `onHit`) |
+| `onPause(kind)` | (1.1) wyścig wstrzymano: `kind` = `"menu"` (menu pauzy) lub `"quick"` (szybka pauza) |
+| `onResume()` | (1.1) wyścig toczy się dalej po pauzie |
+| `onChat(name, text)` | (1.1) przyszedł wiersz czatu sieciowego (także twoje własne); `name` = nadawca, `""` dla wierszy serwera i gry. Tylko do odczytu |
 
 `car` to numer samochodu, 1 .. `rc.race().cars`. `results` to lista w kolejności miejsc; każdy element ma `car`,
 `place`, `finished`, `time`, `bestLap` (brak, jeśli nie było), `lap`, `name`.
@@ -76,23 +90,29 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.0"`) |
+| `rc.version` | wersja API (`"1.1"`) |
 | `rc.modName` | nazwa moda |
-| `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = sekundy od startu (przed nim -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza |
+| `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie) |
 | `rc.player(n)` | tabela samochodu gracza `n` (1 lub 2, domyślnie 1) lub `nil` |
-| `rc.screen()` | `{w, h, menu, vr, split}`: rozmiar renderowania w pikselach, nazwa bieżącego ekranu, VR włączone, podzielony ekran |
+| `rc.screen()` | `{w, h, menu, vr, split}`: rozmiar obrazu w pikselach, nazwa bieżącego ekranu, VR włączony, podzielony ekran |
+| `rc.formatTime(seconds, format)` | (1.1) czas zapisany tak jak w grze: `"m:ss.hh"` jak zegar HUD (`0:15.89`), albo z `format = "short"` `"m:ss"` |
 
-### HUD (rysowany tylko w tej klatce: wywołuj co klatkę z `onFrame`)
+Czasy okrążeń działają jak w grze: `lap` wynosi 0, dopóki samochód po raz pierwszy nie przejedzie linii startu/mety,
+a każdy czas okrążenia (także pierwszego) liczy się od przejazdu przez tę linię. Na pierwszym okrążeniu `lapTime`
+jest więc mniejszy od `rc.race().time` o czas, w jakim samochód dojechał ze swojego miejsca startowego do linii.
+Napis okrążenia, tabela wyników gry i `onLap` używają tych samych czasów.
+
+### HUD (rysowany tylko w tej klatce: wywołuj go w każdej klatce z `onFrame`)
 
 Współrzędne to wirtualny ekran 800 x 600 rozciągnięty na cały obraz (na podzielonym ekranie na oba widoki, w VR na
-warstwę HUD). Kolory w postaci `0xAARRGGBB`.
+warstwę HUD). Kolory mają postać `0xAARRGGBB`.
 
 | Funkcja | Znaczenie |
 |---|---|
-| `rc.hudText(x, y, text, color, size, align)` | tekst czcionką gry; `size` 1 = rozmiar tekstu HUD (podąża za skalą UI i `HudScale`); `align` = `"left"` (domyślnie), `"center"`, `"right"` (x to lewa krawędź, środek lub prawa krawędź) |
-| `rc.hudRect(x, y, w, h, color)` | wypełniony prostokąt (domyślny kolor `0x80000000`) |
-| `rc.hudImage(x, y, w, h, texture, color, u0, v0, u1, v1)` | obraz; `texture` to własny plik moda (nazwa jako ścieżka, także z `.png` / `.dds` / `.csi` i w `textures\`), a w przeciwnym razie tekstura gry o tej nazwie; uv domyślnie 0, 0, 1, 1 |
+| `rc.hudText(x, y, text, color, size, align)` | tekst czcionką gry; `size` 1 = rozmiar tekstu HUD (podąża za skalą interfejsu i `HudScale`); `align` = `"left"` (domyślnie), `"center"`, `"right"` (x to lewa krawędź, środek lub prawa krawędź) |
+| `rc.hudRect(x, y, w, h, color)` | wypełniony prostokąt (kolor domyślny `0x80000000`) |
+| `rc.hudImage(x, y, w, h, texture, color, u0, v0, u1, v1)` | obraz; `texture` to własny plik moda (nazwa jako ścieżka, także z `.png` / `.dds` / `.csi` i w `textures\`), w przeciwnym razie tekstura gry o tej nazwie; uv domyślnie 0, 0, 1, 1 |
 
 Najwyżej 512 elementów HUD na klatkę i 64 obrazy na mod.
 
@@ -100,31 +120,87 @@ Najwyżej 512 elementów HUD na klatkę i 64 obrazy na mod.
 
 | Funkcja | Znaczenie |
 |---|---|
-| `rc.playSound(name, volume)` | odtwarza raz: własny plik moda (nazwa jako ścieżka, także z `.wav` / `.ogg` / `.mp3` / `.au` i w `sounds\` lub `sound\`), a w przeciwnym razie dźwięk gry o tej nazwie; `volume` 0 .. 1 (domyślnie 1, razy głośność efektów gry). Zwraca `true`, gdy gra |
+| `rc.playSound(name, volume)` | odtwarza raz: własny plik moda (nazwa jako ścieżka, także z `.wav` / `.ogg` / `.mp3` / `.au` i w `sounds\` lub `sound\`), w przeciwnym razie dźwięk gry o tej nazwie; `volume` 0 .. 1 (domyślnie 1, razy głośność efektów gry). Zwraca `true`, gdy gra |
 | `rc.log(...)` / `print(...)` | wiersz w `game_dbg.log` (i w konsoli -dev) |
 | `rc.warn(...)` / `warn(...)` | wiersz ostrzeżenia (żółty w konsoli -dev) |
+
+### Kamera (1.1)
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.camera{pos =, offset =, target =, car =, fov =, blend =}` | kamera wyścigowa gracza 1 zostaje zastąpiona do `rc.camera(nil)`. `pos = {x, y, z}`: położenie kamery w świecie; albo `offset = {x, y, z}` razem z `car`: położenie względem tego samochodu w jego własnych osiach (x w prawo, y w górę, z do przodu); bez obu zostaje położenie kamery gry. `target = {x, y, z}` lub `car = i`: na co patrzy (bez obu zostaje kierunek gry). `fov` = pionowy kąt widzenia w stopniach, 10 .. 150 (pojedynczy widok gry ma około 64). `blend` = w ile sekund płynnie przejść od kamery gry (0: od razu) |
+| `rc.camera(nil)` | z powrotem do kamery gry (płynnie, w tym samym czasie `blend`) |
+| `rc.cameraInfo()` | bieżąca kamera wyścigowa gracza 1: `{pos = {x, y, z}, dir = {x, y, z}, fov, override, blend}`, poza wyścigiem `nil`. `pos` / `dir` mają też pola `.x .y .z`; `override` = włączona kamera skryptu, `blend` 0 .. 1 |
+
+Zastąpienie kamery działa tylko w wyścigu i tylko na widok gracza 1: na podzielonym ekranie widok gracza 2 zachowuje
+kamerę gry, a w VR kamerą porusza gogle, więc tam zastąpienie jest pomijane (jedno ostrzeżenie w dzienniku).
+Kamery menu nigdy się nie zmieniają. Wyjście z wyścigu i przeładowanie modów wyłączają zastąpienie.
+
+### Pogoda i nastrój (1.1)
+
+Zmieniają tylko to, co rysuje twój komputer. Każdy efekt wyłącza jego funkcja resetu, przekazanie `nil`,
+automatycznie koniec wyścigu (tuż przed `onRaceEnd`, więc skrypt może tam ustawić nowy nastrój), wyjście z wyścigu
+i przeładowanie modów. Gdy kilka modów ustawia ten sam efekt, wygrywa ostatnie wywołanie.
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.fog{color =, near =, far =, density =}` | mgła trasy: `color` = `0xRRGGBB`; `density` na metr 0 .. 1 (mgła gry jest wykładnicza, trasy używają 0,006 .. 0,026); `near` / `far` w metrach: z nimi i bez `density` mgła jest liniowa od `near` do `far`. Brakujące pola zachowują wartości trasy. Mgła jest widoczna tylko wtedy, gdy mgła gry jest włączona (opcje wideo) |
+| `rc.resetFog()` | znów mgła trasy (jak `rc.fog(nil)`) |
+| `rc.sun{dir = {x, y, z}}` lub `rc.sun{elevation =, azimuth =}` | kierunek słońca (w stronę słońca; kąty w stopniach, azymut obraca się od +z do +x): cienie w czasie rzeczywistym (`Shadows=realtime`) i oświetlenie samochodów |
+| `rc.resetSun()` | znów słońce trasy |
+| `rc.lights{intensity =, color =}` | latarnie tras (tylko przy `PointLights=1`): `intensity` = mnożnik ich siły 0 .. 8, `color` = `0xRRGGBB` zamiast ich własnego koloru. Zwraca `true`, gdy światła punktowe są włączone |
+| `rc.resetLights()` | znów własne światło latarni |
+| `rc.water{color =, alpha =}` | morze: `color` = odcień `0xRRGGBB`, `alpha` = mnożnik przezroczystości 0 .. 1 (przy `WaterFx=1` odcień barwi też płyciznę) |
+| `rc.resetWater()` | znów własny wygląd morza |
+
+### Odczucia pada (1.1)
+
+`player` to 1 lub 2 (domyślnie 1). Funkcje zwracają `true`, gdy pad może teraz pokazać efekt.
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.rumble(strength, seconds, player)` | impuls wibracji: `strength` 0 .. 1 (razy twoje ustawienie `Rumble`), najwyżej 3 sekundy. Odczuwalny tylko podczas jazdy samochodu gracza w wyścigu, jak własna wibracja gry |
+| `rc.lightBar(r, g, b, player)` | pasek świetlny DualSense / DualShock 4 w tym kolorze (każdy 0 .. 255) do `rc.lightBar(nil, player)`. Ma pierwszeństwo przed kolorem gry; przy `LightBar=off` nic się nie zmienia |
+| `rc.triggers{right =, left =, player =}` | adaptacyjne spusty DualSense podczas jazdy samochodu gracza w wyścigu: każdy spust `"off"` lub `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (stały opór od części `start` skoku). Do `rc.triggers(nil, player)`; przy `AdaptiveTriggers=0` nie działa |
+| `rc.padSound(name, player, volume)` | dźwięk (własny plik moda lub dźwięk gry, jak w `rc.playSound`) przez własny głośnik pada: wymaga `PadSpeaker=1` i podłączenia kablem USB (przez Bluetooth pady nie mają urządzenia audio Windows); nigdy przez głośniki PC. `volume` 0 .. 1, razy głośność efektów i `PadSpeakerVolume`. Urządzenie audio DualShock 4 przez USB to jego wyjście słuchawkowe |
+| `rc.padHaptics(name, player, volume)` | dźwięk (własny plik moda lub dźwięk gry) na haptyce cewkowej DualSense, przez Bluetooth i USB: wymaga `PadHaptics=1` i `Rumble` powyżej 0; nie działa, gdy gra jest w tle lub wyścig jest wstrzymany. `volume` 0 .. 1, razy `PadHapticsVolume`. DualShock 4 nie ma cewek |
+
+Przeładowanie modów kończy pasek świetlny i efekty spustów skryptu.
 
 ### Pliki własnego moda
 
 | Funkcja | Znaczenie |
 |---|---|
-| `rc.readFile(path)` | bajty pliku jako ciąg lub `nil, komunikat`. Czytany jest tylko własny mod skryptu |
-| `rc.include(path)` | raz uruchamia plik `.lua` własnego moda i zwraca jego wynik (kolejne wywołania zwracają ten sam), jak `require` |
+| `rc.readFile(path)` | bajty pliku jako ciąg albo `nil, komunikat`. Odczytywany jest tylko własny mod skryptu |
+| `rc.include(path)` | uruchamia raz plik `.lua` własnego moda i zwraca jego wynik (kolejne wywołania zwracają ten sam wynik), jak `require` |
 
 ### Ustawienia
 
 Zapisywane w `Saves\Mods\<mod>.ini` obok `RcCarsRe.exe` (`<mod>.zip.ini` dla moda zip), sekcja `[Settings]`.
-Nic innego nie jest zapisywane.
 
 | Funkcja | Znaczenie |
 |---|---|
-| `rc.setting(key, default)` | zapisana wartość zamieniona na typ `default` (logiczna, liczba, ciąg); bez zapisanej wartości `default` lub wartość domyślna opcji |
-| `rc.setSetting(key, value)` | zapisuje wartość logiczną, liczbę lub ciąg (`nil` usuwa); plik jest zapisywany od razu, więc nie wywołuj tego co klatkę |
-| `rc.options{ ... }` | deklaruje opcje strony Ustawienia moda (poniżej) |
+| `rc.setting(key, default)` | zapisana wartość zamieniona na typ `default` (logiczna, liczba, ciąg); bez zapisanej wartości `default` albo wartość domyślna opcji |
+| `rc.setSetting(key, value)` | zapisuje wartość logiczną, liczbę lub ciąg (`nil` usuwa); zapisuje plik od razu, więc nie wywołuj tego w każdej klatce |
+| `rc.options{ ... }` | deklaruje opcje strony Ustawienia moda (niżej) |
 
 Klucze: litery, cyfry, `_`, `.`, `-`, najwyżej 63 znaki. Wartości: najwyżej 1000 bajtów, bez znaków nowego wiersza.
 
-### Strona Ustawienia
+### Statystyki (1.1)
+
+Przechowywane osobno dla każdego moda w `Saves\Mods\<mod>.stats.ini` obok `RcCarsRe.exe` (`<mod>.zip.stats.ini`
+dla moda zip), oddzielnie od ustawień i nigdy w zapisie gracza. Wartości to liczby lub ciągi (najwyżej 1000 bajtów),
+najwyżej 1000 kluczy na mod, klucze jak w ustawieniach. Zmiany są trzymane w pamięci i zapisywane naraz na końcu
+wyścigu, przy wyjściu z wyścigu, przy przeładowaniu modów i przy wyjściu z gry, więc funkcje można wywoływać
+dowolnie często.
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.stats.get(key, default)` | zapisana wartość albo `default` (lub `nil`) |
+| `rc.stats.set(key, value)` | zapisuje liczbę lub ciąg; `nil` usuwa klucz |
+| `rc.stats.add(key, n)` | dodaje `n` (domyślnie 1) do liczby (brakujący klucz liczy się jako 0) i zwraca nową wartość |
+
+### Strona ustawień
 
 ```lua
 rc.options{
@@ -135,7 +211,7 @@ rc.options{
 }
 ```
 
-- `label` (i każdy element `labels`) to ciąg lub tabela według języków: `{en = "...", hu = "...", ru = "...", pl = "..."}`.
+- `label` (i każdy element `labels`) to ciąg albo tabela według języka: `{en = "...", hu = "...", ru = "...", pl = "..."}`.
 - Załadowany mod z opcjami ma aktywny przycisk **Ustawienia** na ekranie Mody. Jego strona używa własnych elementów
   menu gry (przełączniki, suwaki, przyciski); zmiany są zapisywane od razu i uruchamia się
   `onOptionChanged(key, value)`.
@@ -151,8 +227,8 @@ rc.options{
 - Pamięć: 64 MB na mod.
 - Czas: `LuaBudget` instrukcji Lua na wywołanie zdarzenia. Długiej pracy wewnątrz jednego wywołania biblioteki (np.
   ogromne `string.rep` albo złożony wzorzec) licznik instrukcji nie mierzy; pisz proste skrypty.
-- Skrypty nigdy nie zapisują plików gry, plików modów ani zapisów graczy; jedynym zapisywanym plikiem jest plik
-  ustawień moda.
+- Skrypty nigdy nie zapisują plików gry, plików modów ani zapisów graczy; zapisywane są tylko pliki ustawień i
+  statystyk moda.
 
 ## 7. Obsługa błędów
 
@@ -169,23 +245,34 @@ rc.options{
 - Polecenie konsoli `lua` wypisuje mody ze skryptami; `lua <kod>` uruchamia kod w stanie ostatnio załadowanego moda,
   `lua <mod> <kod>` w stanie tego moda, i wypisuje wyniki (działa też wyrażenie, np. `lua rc.race().state`).
 - Szybkie przeładowanie: pliki `.lua` modów-folderów są sprawdzane co sekundę; gdy któryś się zmieni, skrypty tego
-  moda są ładowane ponownie (mody zip: Zastosuj).
+  moda są ładowane ponownie (mody zip: Zastosuj). Przeładowanie kończy też wszystkie zastąpienia kamery, pogody i
+  paska świetlnego.
 
 ## 9. Przykłady
 
-`docs/modding/examples/` zawiera dwa kompletne mody. Skopiuj folder do `mods\` obok `RcCarsRe.exe`:
+`docs/modding/examples/` zawiera trzy kompletne mody. Skopiuj folder do `mods\` obok `RcCarsRe.exe`:
 
-- `laptime_hud`: bieżący, poprzedni i najlepszy czas okrążenia gracza 1 w ramce; opcje dla najlepszego okrążenia,
-  rozmiaru i narożnika.
-- `checkpoint_sound`: przy każdym punkcie kontrolnym gracza 1 odtwarza własny `sounds\ding.wav` moda i pokazuje jego
-  numer.
+- `laptime_hud`: czas wyścigu gracza 1 (ten sam co zegar HUD), bieżące, ostatnie i najlepsze okrążenie w ramce, w
+  formacie czasu gry; opcje: najlepsze okrążenie, rozmiar, róg.
+- `checkpoint_sound`: przy każdym punkcie kontrolnym gracza 1 odtwarza własny `sounds\ding.wav` moda i wyświetla
+  jego numer.
+- `drift_air`: gdy samochód gracza 1 ląduje po skoku, pokazuje czas w powietrzu, daje krótką wibrację i błysk paska
+  świetlnego oraz zapamiętuje przez `rc.stats` najlepszy czas w powietrzu dla każdej trasy i liczbę skoków.
 
 Minimalny skrypt:
 
 ```lua
 function onLap(car, lap, t)
   local p = rc.player(1)
-  if p and p.index == car then rc.log(string.format("lap %d: %.2f s", lap, t)) end
+  if p and p.index == car then rc.log("lap " .. lap .. ": " .. rc.formatTime(t)) end
+end
+
+function onLand(car, air)
+  local p = rc.player(1)
+  if p and p.index == car and air > 0.5 then
+    rc.rumble(0.6, 0.2)
+    rc.stats.add("jumps")
+  end
 end
 
 function onFrame(dt)
@@ -199,10 +286,13 @@ end
 
 | Problem | Sprawdź |
 |---|---|
-| Nic się nie dzieje | `LuaScripts=1` i `Mods=1` w `RcCarsRe.ini`; mod jest włączony na ekranie Mody; plik jest w katalogu głównym moda lub w `scripts\`; w `game_dbg.log` jest `Lua [mod]: ... loaded` |
+| Nic się nie dzieje | `LuaScripts=1` i `Mods=1` w `RcCarsRe.ini`; mod jest włączony na ekranie Mody; plik leży w katalogu głównym moda lub w `scripts\`; `game_dbg.log` zawiera `Lua [mod]: ... loaded` |
 | „mod scripts disabled after repeated errors” | przeczytaj pierwsze wiersze błędów `Lua [mod]` w `game_dbg.log`, popraw skrypt, naciśnij Zastosuj |
-| „instruction budget exceeded” | zdarzenie wykonało naraz zbyt dużo pracy; rozłóż ją na klatki lub zwiększ `LuaBudget` |
-| Element HUD jest niewidoczny | wywołania HUD działają tylko przez jedną klatkę: wywołuj je z `onFrame`; sprawdź bajt alfa koloru (`0xFF......` jest nieprzezroczysty) |
+| „instruction budget exceeded” | zdarzenie wykonało naraz za dużo pracy; rozłóż ją na klatki albo zwiększ `LuaBudget` |
+| Element HUD niewidoczny | wywołania HUD działają tylko przez jedną klatkę: wywołuj je z `onFrame`; sprawdź bajt alfa koloru (`0xFF......` jest nieprzezroczysty) |
 | „texture ... not found” / „sound ... not found” (żółte) | nazwa i folder pliku w modzie; obrazy PNG, DDS lub CSI; dźwięki WAV, OGG, MP3 lub AU |
-| W tekście widać `?` | zapisz skrypt w UTF-8; czcionka gry ma tylko znaki strony kodowej swojego języka |
+| W tekście pojawia się `?` | zapisz skrypt w UTF-8; czcionka gry ma tylko znaki strony kodowej swojego języka |
+| Czas 1. okrążenia jest mniejszy niż zegar HUD | jak w grze, czasy okrążeń liczą się od linii startu/mety; czas wyścigu to `rc.race().time` |
+| Kamera się nie zmienia | tylko w wyścigu, tylko widok gracza 1, nie w VR |
+| Brak wibracji / paska świetlnego | pad musi być podłączony; `Rumble`, `LightBar`, `AdaptiveTriggers` w `RcCarsRe.ini`; wibracja i spusty działają tylko podczas jazdy w wyścigu |
 | Błędy w konsoli -dev | wiersze błędów są czerwone, ostrzeżeń żółte; te same wiersze są w `game_dbg.log` |

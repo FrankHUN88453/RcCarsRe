@@ -30,6 +30,13 @@ reconstructed C source, so the game can run on today's systems and be modified.
 - Realtime reflections on the cars and an improved sea (mirror image, fresnel, see-through shallows)
 - Frame rate limit and VSync settings (no 64 fps cap), FPS counter
 - HD menu font, HUD fixes for wide screens
+- Screen-space ambient occlusion (SSAO), realtime point lights for lamps and lanterns
+- 1280 x 800 (Steam Deck) and any other resolution; menus and HUD scale with the window
+- Xbox, PlayStation 4 and DualSense controllers: rumble, DualSense adaptive triggers, a light bar that follows the
+  race's GPS arrow (yellow in the menus), shots felt through the DualSense haptics (experimental) and heard on the pad's
+  speaker over USB; the pad is reset when the game quits
+- Split screen for two players (keyboard and mouse or two pads), mouse camera
+- VR through OpenXR (SteamVR and others), Discord status in four languages
 
 ## Multiplayer
 
@@ -50,15 +57,16 @@ the changes without a restart. How it works:
 
 Mods can carry small, sandboxed Lua scripts: HUD texts and pictures, sounds, lap and checkpoint events and a
 settings page in the Mods menu. Scripts act only locally (HUD, sound, log); they cannot change the race or the game's
-files. Documentation with the full API and two example mods:
+files. Documentation with the full API and three example mods (events, camera, fog, sun and water, rumble and light bar, own stats):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 is used under the MIT licence ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
 ## Status
 
-Work in progress. Quick races and the championship can be played from start to finish; garage purchases and network
-multiplayer are not ready yet.
+Work in progress. Quick races and the championship can be played from start to finish, and network races work over
+LAN, by direct IP and over the Internet (UPnP or a forwarded port, Discord invites) with the host's world shared;
+garage purchases are not ready yet.
 
 | Area | State |
 |---|---|
@@ -76,7 +84,7 @@ multiplayer are not ready yet.
 | Garage | screens working, purchases in progress |
 | Split screen for two players; Xbox, PlayStation 4 and DualSense controllers with rumble | working |
 | VR (OpenXR), Discord status | working |
-| Network multiplayer: LAN, direct IP, Discord invite, UPnP, chat, server commands and votes | working (traffic and NPCs are not synchronised yet) |
+| Network multiplayer: LAN, direct IP, Discord invite, UPnP, chat, server commands and votes | working (the host's traffic, people, dogs, guards, crabs, props and shots are synchronised) |
 | Mod support (`mods` folder, Mods menu, Lua scripts) | working |
 
 ## What this repository will not contain
