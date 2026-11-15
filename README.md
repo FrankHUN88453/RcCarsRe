@@ -5,8 +5,12 @@
 RcCarsRe is a fan project that rebuilds the executable of the 2003 PC game **RC Cars** (Creat Studio) from
 reconstructed C source, so the game can run on today's systems and be modified.
 
-> This repository currently holds only this description. No source code has been published yet, and no part of the
-> original game will ever be published here.
+![RcCarsRe: a Quick race on the first beach track](docs/preview.webp)
+
+*A Quick race in the rebuilt exe at 2560 x 1440, with realtime shadows and reflections switched on.*
+
+> This repository currently holds only this description and the preview picture. No source code has been
+> published yet, and no part of the original game will ever be published here.
 
 ## What it is
 
@@ -15,31 +19,35 @@ reconstructed C source, so the game can run on today's systems and be modified.
   It does not work without one.
 - The goal is behaviour faithful to the original. Core routines are compared bit for bit against the original's
   functions in a test harness.
-- Modern changes are optional and can be switched in `RcCarsRe.ini`.
+- Modern changes are optional and can be switched in `RcCarsRe.ini`, which lists every option and its values.
 
 ## Modern options
 
 - Direct3D 11 renderer that emulates the original's Direct3D 8 calls
-- Native resolution, borderless window, UI scaling
-- Anti-aliasing (MSAA / FXAA), best texture quality
+- Native resolution, borderless window, wide-screen field of view, UI and HUD scaling
+- Anti-aliasing (MSAA / FXAA), anisotropic filtering, best texture quality
+- Realtime shadows (cascaded shadow maps) in place of the original blob shadows
+- Realtime reflections on the cars and an improved sea (mirror image, fresnel, see-through shallows)
 - Frame rate limit and VSync settings (no 64 fps cap), FPS counter
-- HD menu font
+- HD menu font, HUD fixes for wide screens
 
 ## Status
 
-Work in progress. It is not playable as a full game yet.
+Work in progress. A Quick race can be played from start to finish; the other game modes are not ready yet.
 
 | Area | State |
 |---|---|
 | Intro, main menu, Options, Quick race screens | working |
-| Music and interface sounds | working |
-| Level loading, track rendering, animated water | working |
-| AI cars following their recorded paths | working (interim) |
-| Player car physics: level collision, suspension, tyres, engine, steering | working, being refined |
-| Visible suspension and wheels | first car done, others in progress |
-| Antenna, race camera | in progress |
-| Start lights, laps, checkpoints, HUD | not started |
+| Music, interface and race sounds | working |
+| Level loading and rendering, sea, coast foam, streams, waterfalls | working |
+| Player car physics: collisions, suspension, tyres, engine, steering, antenna | working |
+| AI opponents | working (their original path choice is in progress) |
+| Race: countdown, laps, checkpoints, placings, HUD, map, racer list, results table | working |
+| Props with physics, people, seagulls, crabs, dogs, traffic, guards, spiders, vultures | working, being refined |
+| Car effects: tyre tracks, dust, exhaust smoke, dirt, water splashes | working |
+| Fog, pause menu, guards' and armoured car's shots | in progress |
 | Other game modes, garage, multiplayer | not started |
+| Mod support (`mods` folder) | planned |
 
 ## What this repository will not contain
 
@@ -50,7 +58,7 @@ Work in progress. It is not playable as a full game yet.
 
 RC Cars and all related names and assets belong to their respective owners. This is an unofficial,
 non-commercial project that is not affiliated with or endorsed by them. You need your own legally obtained copy
-of the game to use it.
+of the game to use it. The preview picture shows the rebuilt exe running with the original game's data.
 
 ## Languages
 
