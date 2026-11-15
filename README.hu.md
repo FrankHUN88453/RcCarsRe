@@ -32,6 +32,14 @@ Az RcCarsRe egy rajongói projekt, amely a 2003-as **RC Cars** (Creat Studio) PC
 - Képkockasebesség-korlát és VSync beállítások (nincs 64 fps-es plafon), FPS-számláló
 - HD menübetűtípus, HUD-javítások szélesvásznú képernyőre
 
+## Többjátékos mód
+
+Legfeljebb hat játékos LAN-on, közvetlen IP-címmel vagy Discord-meghívással, saját UDP hálózati kóddal (nincs
+DirectPlay, az eredeti exe-vel nem játszható együtt). A host UPnP-vel nyit portot, ha a router engedi. A lobbyban és
+a versenyben is van chat, a hostnak szerverparancsai (kick, ban, say, pálya és körszám) vannak, és lehet szavazni.
+Teszteléshez két példány is futhat egy gépen. Hogyan működik:
+[English](docs/MULTIPLAYER.md) | [Magyar](docs/MULTIPLAYER.hu.md) | [Русский](docs/MULTIPLAYER.ru.md) | [Polski](docs/MULTIPLAYER.pl.md).
+
 ## Modok
 
 A játék fájljai lecserélhetők az exe melletti `mods` mappából: mappák vagy zip archívumok, textúrák CSI, PNG vagy DDS,
@@ -69,7 +77,7 @@ hálózati többjátékos mód még nem kész.
 | Garázs | a képernyők működnek, a vásárlás folyamatban |
 | Osztott képernyő két játékosnak; Xbox, PlayStation 4 és DualSense kontrollerek rezgéssel | működik |
 | VR (OpenXR), Discord-állapot | működik |
-| Hálózati többjátékos mód (saját UDP-átvitel, először LAN) | folyamatban |
+| Hálózati többjátékos mód: LAN, közvetlen IP, Discord-meghívás, UPnP, chat, szerverparancsok és szavazás | működik (a forgalom és az NPC-k még nincsenek szinkronban) |
 | Modtámogatás (`mods` mappa, Modok menü, Lua szkriptek) | működik |
 
 ## Amit ez a tároló nem fog tartalmazni

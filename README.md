@@ -31,6 +31,14 @@ reconstructed C source, so the game can run on today's systems and be modified.
 - Frame rate limit and VSync settings (no 64 fps cap), FPS counter
 - HD menu font, HUD fixes for wide screens
 
+## Multiplayer
+
+Up to six players over LAN, by direct IP or through a Discord invite, with our own UDP network code (no
+DirectPlay, no cross-play with the original exe). The host maps its port with UPnP when the router allows it. In the
+lobby and in the race there is a chat, and the host has server commands (kick, ban, say, track and laps) and votes.
+Two copies can run on one PC for testing. How it works:
+[English](docs/MULTIPLAYER.md) | [Magyar](docs/MULTIPLAYER.hu.md) | [Русский](docs/MULTIPLAYER.ru.md) | [Polski](docs/MULTIPLAYER.pl.md).
+
 ## Mods
 
 Game files can be replaced from a `mods` folder next to the exe: folders or zip archives, textures as CSI, PNG or
@@ -68,7 +76,7 @@ multiplayer are not ready yet.
 | Garage | screens working, purchases in progress |
 | Split screen for two players; Xbox, PlayStation 4 and DualSense controllers with rumble | working |
 | VR (OpenXR), Discord status | working |
-| Network multiplayer (own UDP transport, LAN first) | in progress |
+| Network multiplayer: LAN, direct IP, Discord invite, UPnP, chat, server commands and votes | working (traffic and NPCs are not synchronised yet) |
 | Mod support (`mods` folder, Mods menu, Lua scripts) | working |
 
 ## What this repository will not contain

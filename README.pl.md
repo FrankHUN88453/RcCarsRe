@@ -34,6 +34,14 @@ w czasie rzeczywistym.*
 - Ustawienia limitu klatek i VSync (bez ograniczenia do 64 kl./s), licznik FPS
 - Czcionka menu w jakości HD, poprawki HUD dla szerokich ekranów
 
+## Tryb wieloosobowy
+
+Do sześciu graczy przez LAN, bezpośredni adres IP albo zaproszenie na Discordzie, na własnym kodzie sieciowym UDP
+(bez DirectPlay, bez wspólnej gry z oryginalnym exe). Host otwiera port przez UPnP, jeśli router na to pozwala. W
+lobby i w wyścigu jest czat, host ma polecenia serwera (kick, ban, say, trasa i liczba okrążeń), są też głosowania.
+Do testów na jednym PC można uruchomić dwie kopie. Jak to działa:
+[English](docs/MULTIPLAYER.md) | [Magyar](docs/MULTIPLAYER.hu.md) | [Русский](docs/MULTIPLAYER.ru.md) | [Polski](docs/MULTIPLAYER.pl.md).
+
 ## Mody
 
 Pliki gry można zastępować z folderu `mods` obok exe: foldery lub archiwa zip, tekstury w CSI, PNG lub DDS, dźwięki i
@@ -71,7 +79,7 @@ wieloosobowy przez sieć nie są jeszcze gotowe.
 | Garaż | ekrany działają, zakupy w toku |
 | Podzielony ekran dla dwóch graczy; kontrolery Xbox, PlayStation 4 i DualSense z wibracjami | działa |
 | VR (OpenXR), status w Discordzie | działa |
-| Tryb wieloosobowy przez sieć (własny transport UDP, najpierw LAN) | w toku |
+| Tryb wieloosobowy: LAN, bezpośredni IP, zaproszenie na Discordzie, UPnP, czat, polecenia serwera i głosowania | działa (ruch uliczny i NPC nie są jeszcze synchronizowane) |
 | Obsługa modów (folder `mods`, menu Mody, skrypty Lua) | działa |
 
 ## Czego to repozytorium nie będzie zawierać
