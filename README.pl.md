@@ -34,9 +34,26 @@ w czasie rzeczywistym.*
 - Ustawienia limitu klatek i VSync (bez ograniczenia do 64 kl./s), licznik FPS
 - Czcionka menu w jakości HD, poprawki HUD dla szerokich ekranów
 
+## Mody
+
+Pliki gry można zastępować z folderu `mods` obok exe: foldery lub archiwa zip, tekstury w CSI, PNG lub DDS, dźwięki i
+muzyka w AU, WAV, MP3 lub OGG, bez limitów rozmiaru. Menu Mody ustawia ich kolejność, włącza je i stosuje zmiany bez
+restartu. Jak to działa:
+[English](docs/MODDING.md) | [Magyar](docs/MODDING.hu.md) | [Русский](docs/MODDING.ru.md) | [Polski](docs/MODDING.pl.md).
+
+## Skrypty Lua w modach
+
+Mody mogą zawierać małe skrypty Lua działające w piaskownicy: teksty i obrazy na HUD, dźwięki, zdarzenia okrążeń i
+punktów kontrolnych oraz stronę ustawień w menu Mody. Skrypty działają tylko lokalnie (HUD, dźwięk, dziennik); nie
+mogą zmieniać wyścigu ani plików gry. Dokumentacja z pełnym API i dwoma przykładowymi modami:
+[English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
+[Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
+Lua 5.4 jest używane na licencji MIT ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
+
 ## Stan prac
 
-Prace trwają. Szybki wyścig można rozegrać od początku do końca; pozostałe tryby gry nie są jeszcze gotowe.
+Prace trwają. Szybki wyścig i mistrzostwa można rozegrać od początku do końca; zakupy w garażu i tryb
+wieloosobowy przez sieć nie są jeszcze gotowe.
 
 | Obszar | Stan |
 |---|---|
@@ -48,9 +65,14 @@ Prace trwają. Szybki wyścig można rozegrać od początku do końca; pozostał
 | Wyścig: odliczanie, okrążenia, punkty kontrolne, pozycje, HUD, mapa, lista zawodników, tabela wyników | działa |
 | Przedmioty z fizyką, ludzie, mewy, kraby, psy, ruch uliczny, strażnicy, pająki, sępy | działa, w trakcie dopracowywania |
 | Efekty samochodów: ślady opon, kurz, dym z wydechu, brud, rozbryzgi wody | działa |
-| Mgła, menu pauzy, strzały strażników i transportera opancerzonego | w toku |
-| Pozostałe tryby gry, garaż, tryb wieloosobowy | nie rozpoczęto |
-| Obsługa modów (folder `mods`) | zaplanowane |
+| Mgła, menu pauzy | działa |
+| Strzały strażników i transportera opancerzonego | w toku |
+| Mistrzostwa z nagrodami pieniężnymi, profile graczy, zapisy w oryginalnym formacie | działa |
+| Garaż | ekrany działają, zakupy w toku |
+| Podzielony ekran dla dwóch graczy; kontrolery Xbox, PlayStation 4 i DualSense z wibracjami | działa |
+| VR (OpenXR), status w Discordzie | działa |
+| Tryb wieloosobowy przez sieć (własny transport UDP, najpierw LAN) | w toku |
+| Obsługa modów (folder `mods`, menu Mody, skrypty Lua) | działa |
 
 ## Czego to repozytorium nie będzie zawierać
 

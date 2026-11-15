@@ -31,9 +31,26 @@ reconstructed C source, so the game can run on today's systems and be modified.
 - Frame rate limit and VSync settings (no 64 fps cap), FPS counter
 - HD menu font, HUD fixes for wide screens
 
+## Mods
+
+Game files can be replaced from a `mods` folder next to the exe: folders or zip archives, textures as CSI, PNG or
+DDS, sounds and music as AU, WAV, MP3 or OGG, with no size limits. The Mods menu orders and switches them and applies
+the changes without a restart. How it works:
+[English](docs/MODDING.md) | [Magyar](docs/MODDING.hu.md) | [Русский](docs/MODDING.ru.md) | [Polski](docs/MODDING.pl.md).
+
+## Mod scripting (Lua)
+
+Mods can carry small, sandboxed Lua scripts: HUD texts and pictures, sounds, lap and checkpoint events and a
+settings page in the Mods menu. Scripts act only locally (HUD, sound, log); they cannot change the race or the game's
+files. Documentation with the full API and two example mods:
+[English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
+[Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
+Lua 5.4 is used under the MIT licence ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
+
 ## Status
 
-Work in progress. A Quick race can be played from start to finish; the other game modes are not ready yet.
+Work in progress. Quick races and the championship can be played from start to finish; garage purchases and network
+multiplayer are not ready yet.
 
 | Area | State |
 |---|---|
@@ -45,9 +62,14 @@ Work in progress. A Quick race can be played from start to finish; the other gam
 | Race: countdown, laps, checkpoints, placings, HUD, map, racer list, results table | working |
 | Props with physics, people, seagulls, crabs, dogs, traffic, guards, spiders, vultures | working, being refined |
 | Car effects: tyre tracks, dust, exhaust smoke, dirt, water splashes | working |
-| Fog, pause menu, guards' and armoured car's shots | in progress |
-| Other game modes, garage, multiplayer | not started |
-| Mod support (`mods` folder) | planned |
+| Fog, pause menu | working |
+| Guards' and armoured car's shots | in progress |
+| Championship with prize money, player profiles, saves in the original format | working |
+| Garage | screens working, purchases in progress |
+| Split screen for two players; Xbox, PlayStation 4 and DualSense controllers with rumble | working |
+| VR (OpenXR), Discord status | working |
+| Network multiplayer (own UDP transport, LAN first) | in progress |
+| Mod support (`mods` folder, Mods menu, Lua scripts) | working |
 
 ## What this repository will not contain
 

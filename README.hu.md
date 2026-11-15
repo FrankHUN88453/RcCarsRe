@@ -32,9 +32,26 @@ Az RcCarsRe egy rajongói projekt, amely a 2003-as **RC Cars** (Creat Studio) PC
 - Képkockasebesség-korlát és VSync beállítások (nincs 64 fps-es plafon), FPS-számláló
 - HD menübetűtípus, HUD-javítások szélesvásznú képernyőre
 
+## Modok
+
+A játék fájljai lecserélhetők az exe melletti `mods` mappából: mappák vagy zip archívumok, textúrák CSI, PNG vagy DDS,
+hangok és zene AU, WAV, MP3 vagy OGG formátumban, méretkorlát nélkül. A Modok menüben sorba rendezhetők, ki- és
+bekapcsolhatók, és a változás újraindítás nélkül érvényesül. Hogyan működik:
+[English](docs/MODDING.md) | [Magyar](docs/MODDING.hu.md) | [Русский](docs/MODDING.ru.md) | [Polski](docs/MODDING.pl.md).
+
+## Lua szkriptek a modokban
+
+A modok kis, homokozóban futó Lua szkripteket hozhatnak: HUD szövegek és képek, hangok, kör- és
+ellenőrzőpont-események, és egy beállítási oldal a Modok menüben. A szkriptek csak helyben hatnak (HUD, hang,
+napló); a versenyt és a játék fájljait nem változtathatják meg. Dokumentáció a teljes API-val és két példamoddal:
+[English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
+[Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
+A Lua 5.4 az MIT-licenc alapján szerepel ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
+
 ## Állapot
 
-A munka folyamatban van. Egy gyors verseny elejétől a végéig lejátszható; a többi játékmód még nem kész.
+A munka folyamatban van. A gyors verseny és a bajnokság elejétől a végéig lejátszható; a garázsban vásárlás és a
+hálózati többjátékos mód még nem kész.
 
 | Terület | Állapot |
 |---|---|
@@ -46,9 +63,14 @@ A munka folyamatban van. Egy gyors verseny elejétől a végéig lejátszható; 
 | Verseny: visszaszámlálás, körök, ellenőrzőpontok, helyezések, HUD, térkép, versenyzőlista, eredménytábla | működik |
 | Tárgyak fizikával, emberek, sirályok, rákok, kutyák, forgalom, őrök, pókok, keselyűk | működik, finomítás alatt |
 | Autóeffektek: keréknyom, por, kipufogófüst, koszolódás, vízfröccsenés | működik |
-| Köd, szünetmenü, az őrök és a páncélautó lövése | folyamatban |
-| Egyéb játékmódok, garázs, többjátékos mód | nincs elkezdve |
-| Modtámogatás (`mods` mappa) | tervezett |
+| Köd, szünetmenü | működik |
+| Az őrök és a páncélautó lövése | folyamatban |
+| Bajnokság pénzdíjakkal, játékosprofilok, mentés az eredeti formátumban | működik |
+| Garázs | a képernyők működnek, a vásárlás folyamatban |
+| Osztott képernyő két játékosnak; Xbox, PlayStation 4 és DualSense kontrollerek rezgéssel | működik |
+| VR (OpenXR), Discord-állapot | működik |
+| Hálózati többjátékos mód (saját UDP-átvitel, először LAN) | folyamatban |
+| Modtámogatás (`mods` mappa, Modok menü, Lua szkriptek) | működik |
 
 ## Amit ez a tároló nem fog tartalmazni
 
