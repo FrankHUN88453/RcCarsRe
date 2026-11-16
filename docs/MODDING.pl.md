@@ -46,7 +46,7 @@ twarze albo strony czcionek): pojawiają się po własnych plikach gry. Wielkoś
 
 Mod może też zawierać skrypty Lua (`*.lua` w katalogu głównym albo w `scripts\`): teksty i obrazy HUD, dźwięki, własną
 stronę ustawień na ekranie Mods, a także (API 1.1) kamerę, mgłę, słońce, światła, wibracje / pasek świetlny pada
-i własne statystyki, wszystko tylko na twoim komputerze. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md).
+i własne statystyki, wszystko tylko na twoim komputerze. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md). Mod może też dodać własny **tryb gry** (Lua API 1.4: zasady, rozkazy SI, zamiana samochodów, scena końcowa): pojawia się w wierszu Tryb ekranu Szybki wyścig; przykład to `docs\modding\examples\zombies` (aby zagrać, skopiuj go do `mods\`).
 
 ## Formaty
 

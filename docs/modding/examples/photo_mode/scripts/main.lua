@@ -6,6 +6,7 @@
 -- RcCarsRe.exe, which survives mod updates). Defaults:
 --   P / pad Back-Share-Create: on / off     Esc: leave     W A S D: fly (W / S along the view)     mouse: look
 --   Shift / Ctrl: up / down     Q / E: roll     Space: faster     wheel: zoom     F12 / pad A: photo
+--   R / pad Y (Triangle): realtime shadows and reflections on / off (the ini's own values again when leaving)
 --   Pad: left stick move, right stick look, triggers down / up, bumpers roll, D-pad up / down zoom, L3 faster.
 -- The photos go to Screenshots next to RcCarsRe.exe (without the help line); rc.stats counts them.
 
@@ -23,10 +24,11 @@ rc.options{
 local DEFAULT_KEYS = {
   toggle = "P", leave = "Esc", forward = "W", back = "S", left = "A", right = "D", up = "Shift", down = "Ctrl",
   rollLeft = "Q", rollRight = "E", fast = "Space", fovIn = "WheelUp", fovOut = "WheelDown", photo = "F12",
+  realtimeGfx = "R",
 }
 local DEFAULT_PAD = {
   toggle = "back", photo = "a", fast = "ls", rollLeft = "lb", rollRight = "rb", fovIn = "up", fovOut = "down",
-  leave = "None",
+  leave = "None", realtimeGfx = "y",
 }
 local PAD_NAMES = {
   a = 1, cross = 1, b = 1, circle = 1, x = 1, square = 1, y = 1, triangle = 1, lb = 1, l1 = 1, rb = 1, r1 = 1,
@@ -154,6 +156,7 @@ end
 
 local on = false
 local pos, yaw, pitch, roll, fov = nil, 0, 0, 0, 60
+local iniGfx, gfxOn = nil, false                    -- the graphics before the photo mode; realtime switched on
 local msg, msgTime = nil, 0
 
 local function enter(how)
@@ -177,11 +180,24 @@ local function enter(how)
   pitch = math.asin(math.max(-1, math.min(1, c.dir.y)))
   roll = 0
   fov = rc.setting("fov", 60)
+  iniGfx, gfxOn = rc.graphics(), false                -- (the ini's Shadows / Reflections, to go back to)
   on = true
   rc.log("photo mode on (" .. how .. ")")
 end
 
+-- realtime shadows and reflections on, or the ini's own values again (rc.graphics, API 1.3)
+local function setRealtime(want)
+  gfxOn = want
+  if want then
+    rc.graphics{shadows = "realtime", reflections = "realtime"}
+  elseif iniGfx then
+    rc.graphics(iniGfx)
+  end
+  rc.log("photo mode: realtime shadows and reflections " .. (want and "on" or "off"))
+end
+
 local function leave(how)
+  if gfxOn then setRealtime(false) end
   rc.camera(nil)
   rc.hud(true)
   rc.input.capture(false)
@@ -258,6 +274,8 @@ function onFrame(dt)
   if padHeld(p, "fovOut") then fov = fov + 30 * dt end
   fov = math.max(15, math.min(120, fov))
   rc.camera{pos = pos, target = {pos[1] + fx, pos[2] + fy, pos[3] + fz}, fov = fov, roll = roll}
+  -- realtime shadows and reflections
+  if hit("realtimeGfx") or padHit(p, "realtimeGfx") then setRealtime(not gfxOn) end
   -- the photo
   if hit("photo") or padHit(p, "photo") then
     local file = rc.screenshot{hideScriptHud = true}
@@ -268,8 +286,9 @@ function onFrame(dt)
   if rc.setting("help", true) then
     rc.hudRect(0, 572, 800, 28, 0x80000000)
     rc.hudText(400, 576, string.format("PHOTO MODE  %s%s%s%s move, mouse look, %s/%s up/down, %s/%s roll, %s fast, " ..
-      "wheel zoom, %s photo, %s/%s leave", keys.forward, keys.left, keys.back, keys.right, keys.up, keys.down,
-      keys.rollLeft, keys.rollRight, keys.fast, keys.photo, keys.toggle, keys.leave), 0xffffffff, 0.7, "center")
+      "wheel zoom, %s realtime: %s, %s photo, %s/%s leave", keys.forward, keys.left, keys.back, keys.right, keys.up,
+      keys.down, keys.rollLeft, keys.rollRight, keys.fast, keys.realtimeGfx, gfxOn and "on" or "off", keys.photo,
+      keys.toggle, keys.leave), 0xffffffff, 0.7, "center")
   end
   if msg and msgTime > 0 then
     msgTime = msgTime - dt

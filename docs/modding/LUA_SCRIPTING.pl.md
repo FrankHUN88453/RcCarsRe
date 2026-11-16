@@ -6,10 +6,11 @@ RcCarsRe potrafi uruchamiać małe skrypty Lua dołączone do moda. Skrypt może
 samochody, pozycje, czasy okrążeń), reagować na zdarzenia (okrążenie, punkt kontrolny, uderzenie, skok,
 wyprzedzenie, pauza, koniec wyścigu ...) i robić rzeczy lokalne: rysować teksty, obrazy i prostokąty na HUD,
 odtwarzać dźwięki, poruszać kamerą, zmieniać mgłę, słońce i oświetlenie, włączać wibracje pada, pisać do dziennika
-oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać wyścigu, samochodów ani plików gry.
+oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać wyścigu, samochodów ani plików gry, z jednym
+wyjątkiem: skrypt trybu gry (rozdział 6, API 1.4) prowadzi zasady własnych wyścigów (na razie w grze jednoosobowej).
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.2**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.4**.
 
 ## 1. Przegląd
 
@@ -91,7 +92,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.2"`) |
+| `rc.version` | wersja API (`"1.4"`) |
 | `rc.modName` | nazwa moda |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie) |
@@ -234,6 +235,7 @@ twoim komputerze.
 | `rc.timeScale(s)` | spowolnienie, `s` 0,05 .. 1 (1 = normalnie). W wyścigu sieciowym `false`. Do pełnego zatrzymania służy `rc.pause` |
 | `rc.hud(show)` | `false` ukrywa własny HUD gry (kokpit, wskaźniki, strzałkę, mapę, listę zawodników, komunikaty, wiersze czatu, ShowFps); `rc.hudText` / `rc.hudImage` / `rc.hudRect` skryptu nadal się rysują |
 | `rc.screenshot{hideScriptHud =, scale =}` | zapisuje następną klatkę jako PNG w folderze `Screenshots` obok `RcCarsRe.exe` i zwraca nazwę pliku. `hideScriptHud` (domyślnie `true`) pomija w tej klatce elementy HUD skryptu. Powstaje tylko `scale = 1` (klatka tak, jak widać) |
+| `rc.graphics{shadows =, reflections =}` | (1.3) przełącza `Shadows` / `Reflections` na tę sesję: każde `"original"`, `"realtime"` lub `"off"` (brakujące pola zostają). `rc.graphics()` zwraca bieżące `{shadows, reflections}`. Ini nie jest zapisywane: gra wraca do jego wartości na końcu wyścigu, przy wyjściu z wyścigu, przy przeładowaniu modów i przy błędzie skryptu. Pierwsze przełączenie na realtime tworzy mapy cieni / kostki odbić (krótkie przycięcie, kilkaset MB pamięci wideo); kolejne przełączenia z nich korzystają. Dozwolone w wyścigach sieciowych (zmienia się tylko twój obraz) |
 
 - `rc.camera{...}` przyjmuje też `roll = stopnie` (dodatnio zgodnie z ruchem wskazówek zegara) i działa także
   podczas pauzy wyścigu.
@@ -298,7 +300,167 @@ a dla tej akcji zostaje wartość domyślna. Nazwy klawiszy: `A` .. `Z`, `0` .. 
 `Saves\Mods\photo_mode.controls.ini` obok `RcCarsRe.exe` (czytana przez `rc.readUserFile("controls.ini")`) ma
 pierwszeństwo i przetrwa aktualizacje moda.
 
-## 6. Ograniczenia piaskownicy
+W trybie fotograficznym R (na padzie Y / Triangle) włącza i wyłącza cienie i odbicia w czasie rzeczywistym (`realtimeGfx=` w controls.ini); wyjście przywraca wartości z ini.
+
+## 6. Tryby gry (1.4)
+
+Mod może dodać **tryb gry**: własne zasady na zwykłej trasie, gracz przeciw samochodom SI. Mod, który wywołuje
+`rc.registerMode` w swoim `onLoad`, pojawia się w wierszu **Tryb** ekranu Szybki wyścig (strona podsumowania wyścigu,
+pod umiejętnościami rywali): *Wyścig* (zwykły wyścig) i każdy zarejestrowany tryb pod swoją nazwą w języku gry. Wyścig
+trybu wczytuje wybraną trasę jak zwykle; liczba rywali SI zależy od umiejętności (łatwy 3, normalny 4, trudny 5), nie
+więcej niż `maxCars` trybu.
+
+### Teksty w czterech językach
+
+Każdy tekst API może być napisem albo tabelą języków `{en = "...", hu = "...", ru = "...", pl = "..."}`. Wybiera
+bieżący język gry (ten sam co w menu, `[Modern] Language`); gdy nie ma dla niego tekstu albo język jest inny, użyty
+zostaje angielski, a bez niego pierwszy dostępny.
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.lang()` | język gry: `"en"`, `"hu"`, `"ru"`, `"pl"` albo nazwa folderu języka małymi literami |
+| `rc.text(t)` | tekst tabeli języków `t` w bieżącym języku (napis wraca bez zmian) |
+
+### Rejestracja trybu
+
+```lua
+rc.registerMode{
+  id = "zombies",                                   -- litery, cyfry, _ . - (unikalny)
+  name = {en = "Zombies", hu = "Zombik", ru = "Зомби", pl = "Zombie"},
+  description = {en = "...", hu = "...", ru = "...", pl = "..."},
+  minCars = 2, maxCars = 6,                          -- 1 .. 6
+  checkpoints = false,                               -- bez punktów kontrolnych, strzałki GPS, okrążeń i mety
+  laps = false,                                      -- bez licznika okrążeń (domyślnie: jak checkpoints)
+  ai = "script",                                     -- "script": samochody SI słuchają rc.ai; "race": ścigają się
+  respawn = false,                                   -- gra nie przywraca samochodów (domyślnie true)
+  hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- części HUD, które tryb ukrywa
+}
+```
+
+Przy `checkpoints = false` wyścig nie ma punktów kontrolnych, strzałki GPS, znaku złego kierunku, liczenia okrążeń
+ani mety; obrazek miejsca jest ukryty. Do gry należy tylko start (3, 2, 1, GO); po GO wyścig prowadzi skrypt trybu i
+kończy go przez `rc.mode.finish`. Samochód, który wpadnie do wody albo spadnie z trasy, wraca na najbliższy punkt
+linii jazdy SI (przy `respawn = false` zamiast tego decyduje tryb).
+
+### Zdarzenia trybu (tylko do własnego moda trybu)
+
+| Zdarzenie | Kiedy |
+|---|---|
+| `onModeLoad(info)` | wyścig trybu się pojawił (od pierwszej klatki, przed odliczaniem startu), i znowu przy *Jeszcze raz*. Tu ustaw wygląd trybu (mgła, tło dźwiękowe) |
+| `onModeStart(info)` | przy GO. `info` = tabela `rc.race()` oraz `id`, `player` (samochód gracza), `minCars`, `maxCars` |
+| `onModeFrame(dt)` | w każdej klatce, gdy trwa wyścig (nie w pauzie i nie po mecie) |
+| `onModeTimer()` | czas `rc.mode.timer` dobiegł 0 |
+| `onModeEnd()` | raz, po `rc.mode.finish` |
+| `onRespawnBlocked(car, reason)` | przy `respawn = false`: gra przywróciłaby samochód. `reason` = `"water"` (2 s pod wodą), `"bounds"` (poza poziomem), `"zone"` (strefa upadku), `"key"` (przycisk Reset gracza), `"flip"` (samochodu na dachu nie dało się postawić na koła), `"stuck"` (fizyka uznała go za zablokowany), `"timed"`, `"aiemu"`. Najwyżej raz na sekundę na samochód |
+
+Zwykłe zdarzenia (`onRaceStart`, `onCollision`, `onFrame`, ...) nadal trafiają do każdego moda.
+
+### Sterowanie trybem (wywołać może tylko skrypt działającego trybu)
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.mode.countdown(seconds, text)` | duże odliczanie na środku ekranu (cyfry kokpitu), potem `text` przez 1,5 s |
+| `rc.mode.message(text, seconds, color)` | komunikat pod środkiem ekranu (domyślnie 3 s, biały; `0xRRGGBB`) |
+| `rc.mode.timer(seconds)` | górny zegar HUD pokazuje pozostały czas (w ostatnich 10 s na czerwono); `nil` / 0 wyłącza |
+| `rc.mode.timeLeft()` | pozostałe sekundy, `nil` bez zegara |
+| `rc.mode.clock()` | sekundy od startu trybu (GO), bez pauz |
+| `rc.mode.active()` | id działającego trybu, `nil` w zwykłym wyścigu (może wywołać każdy mod) |
+| `rc.mode.freeze(car, on)` | zatrzymuje samochód (bez gazu, hamulec), np. na przewagę |
+| `rc.mode.listText(car, text, color)` | lista zawodników HUD pokazuje ten tekst zamiast straty (`nil`: znowu strata) |
+| `rc.mode.finish(results, title)` | kończy wyścig: wszystkie samochody kończą, potem meta gry i jej strona wyników z tymi wierszami. `results` = `{{car =, place =, text =}, ...}`; `title` (domyślnie nazwa trybu) to nagłówek kolumny tekstu |
+| `rc.mode.holdEnd{seconds =, skippable =}` | po `rc.mode.finish`: strona wyników gry pojawi się `seconds` (domyślnie 20, najwyżej 60) sekund później — na scenę końcową. `skippable = false` (domyślnie): przyciski gracza w tym czasie nic nie robią, menu pauzy się nie otwiera (zamknięcie okna nadal kończy grę). Błąd skryptu albo przeładowanie od razu kończy wstrzymanie |
+| `rc.mode.showResults()` | wstrzymana strona wyników teraz |
+| `rc.mode.respawn(on)` | przywracanie samochodów przez grę wł. / wył. na ten wyścig (wartość początkowa to `respawn` z `registerMode`). Wyłączone: samochód na boku lub dachu po 2 s staje na koła w miejscu (także gracza), ale nigdzie nie jest przenoszony |
+| `rc.mode.respawnCar(car)` | tryb przywraca samochód na najbliższy punkt linii jazdy SI (działa też przy `respawn = false`) |
+| `rc.setCarTeam(car, n)` | drużyna samochodu (dowolna liczba; `rc.car(i).team`) |
+| `rc.setCar(car, {model =, paint =, physics =})` | samochód zmienia się w inny samochód RC gry: `model` = `"Overkill"`, `"Buggy"` albo `"Warhammer"`, `paint` = 1 .. 4 (malowania garażu), `physics` = `true` (domyślnie: jeździ też z fizyką tego samochodu) albo `false` (tylko wygląd). `rc.setCar(car, nil)`: znowu własny samochód. Samochód zachowuje ulepszenia, dźwięki i ruch |
+| `rc.carName(car)` | nazwa zawodnika |
+| `rc.distance(car1, car2)` | odległość między dwoma samochodami w metrach |
+
+`rc.car(i)` ma też (1.4) `team`, `model` (`""` własny), `paint` (0 własne), `frozen` i `contacts`: samochody, których
+dotknął w tej klatce (`{2, 4}`).
+
+### Rozkazy dla SI (`ai = "script"`)
+
+`rc.ai(car, order)` prowadzi samochód SI (samochodu gracza nigdy; wtedy zwraca `false`). SI jeździ po grafie dróg
+zbudowanym z linii jazdy SI trasy (punkty przy wodzie i urwiskach są oznaczone: tam zwalnia i trzyma się z dala od tej
+strony), szuka najkrótszych dróg, po zablokowaniu omija przeszkodę, a gdy tryb pozwala na przywracanie, przywraca
+samochód, który ciągle się blokuje.
+
+| Rozkaz | Znaczenie |
+|---|---|
+| `{mode = "chase", target = car}` | wjeżdża w ten samochód: dopóki daleko — drogą, w promieniu 8 m — prosto na niego (trochę przed nim wg jego prędkości) |
+| `{mode = "chase", targets = {cars}}` | to samo dla najbliższego drogą z tych samochodów; cel zmienia tylko, gdy inny jest wyraźnie bliżej (domyślnie: wszystkie samochody innej drużyny) |
+| `{mode = "flee", from = {cars}, caution = m}` | ucieka od tych samochodów (domyślnie: wszystkich innej drużyny): do miejsca w promieniu 30 m drogą najdalszego od nich (najbliższy liczy się najbardziej), którego droga trzyma się `caution` metrów (domyślnie 6) od nich; osaczony — drogą z największym zapasem, obok ścigającego; omija ścigającego tuż przed sobą |
+| `{mode = "stop"}` | stoi na hamulcu |
+| `{mode = "path"}` | znowu zwykła linia wyścigowa |
+
+Każdy rozkaz przyjmuje `speed` = 0,1 .. 1, gaz (domyślnie 1). Zablokowany samochód (ok. 2 s bez postępu) bada drogę
+przed sobą w lewo i w prawo (ściany poziomu, woda i urwiska liczą się jako przeszkoda), cofa się, odwracając przód od
+przeszkody, objeżdża ją po wolniejszej stronie przez punkt pośredni i jedzie dalej; przez 4 s trzyma się tej strony,
+żeby nie próbować tej samej linii. Przy dozwolonym przywracaniu samochód zablokowany trzy razy w ciągu 12 s wraca.
+
+### Dźwięki i tło dźwiękowe poziomu (1.4)
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | dźwięk z uchwytem (`false`, gdy nie gra). `loop = true`: do `rc.stopSound`. `car = i` / `pos = {x, y, z}`: w świecie, przez DirectSound 3D, jak dźwięki samej gry: pełna głośność w promieniu `minDist` (5) metrów od kamery, dalej ciszej, za `maxDist` (60) już nie ciszej, słychać go z jego strony (dźwięk samochodu podąża za nim; na podzielonym ekranie bez kierunku). `pan` = -1 .. 1 albo `panTo = {x, y, z}`: z tej strony, jak widzi kamera. Najwyżej 16 na mod naraz; wszystkie milkną po wyjściu z wyścigu |
+| `rc.stopSound(handle)` | zatrzymuje go |
+| `rc.soundPlaying(handle)` | `true`, dopóki gra |
+| `rc.listModFiles(folder, pattern)` | własne pliki moda w tym folderze o pasujących nazwach (`*`, `?`), np. `rc.listModFiles("sounds", "hit*.wav")`; puste pliki są pomijane (z ostrzeżeniem) |
+| `rc.levelAmbient(on, music)` | `false` wycisza zapętlone tło dźwiękowe poziomu (pętle tła, morze, strumienie i wodospady; dźwięki jednorazowe, np. uderzenie w przedmiot lub kamień, i głosy zostają, tak jak dźwięki samochodów, efektów i skryptów); `music` = dB muzyki wyścigu (0 jak ustawiono, -100 cisza; muzyka menu się nie zmienia). Wraca po wyjściu z wyścigu, przeładowaniu i zatrzymaniu skryptów moda |
+| `rc.fog{...}` | (1.4) zwraca `true`, gdy mgła gry jest widoczna (Opcje / Wideo: mgła wł.) |
+| `rc.hudParts{racerList =, place =, lap =, gps =, map =, timer =, speedo =, boost =, wrongWay =}` | `false` ukrywa tę część HUD gry (listę zawodników, miejsce, licznik okrążeń, strzałkę GPS, minimapę, zegar, prędkościomierz, wskaźnik dopalacza, znak złego kierunku i jego dźwięk), `true` znowu pokazuje; bez argumentu tabela tego, co widać. Wraca po wyjściu z wyścigu, przy *Jeszcze raz*, przeładowaniu i zatrzymaniu skryptów |
+| `rc.textWidth(text, size)` | szerokość tekstu `rc.hudText` w jednostkach 800 x 600 przy tym rozmiarze (ze skalą interfejsu i HudScale), do wyśrodkowania i wyrównania tekstów; `rc.hudText` przyjmuje też jako ostatni argument `{align = "center"}` (albo `"right"`) |
+| `rc.replaceTexture(gameTexture, modFile)` | tekstura gry o tej nazwie (już wczytana, np. skóra przechodnia albo mewy) pokazuje obraz moda (`.png` / `.dds` / `.csi`, także w `textures\` lub `skins\`) do `rc.restoreTexture(name)` / `rc.restoreTextures()`; zostaje po przeładowaniu tekstur; wraca sama po wyjściu z wyścigu, przy *Jeszcze raz*, przeładowaniu i zatrzymaniu skryptów. W odróżnieniu od pliku w folderze `Textures\` moda działa tylko, dopóki skrypt tego chce |
+
+### Ścieżki kamery (1.4)
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.cameraPath{points = {{pos =, target =, fov =, roll =}, ...}, duration =, ease =, blend =}` | kamera wyścigowa gracza 1 przelatuje przez punkty: gładka krzywa przez miejsca i druga przez cele, `fov` / `roll` pomiędzy, w `duration` sekund (domyślnie 10), `ease` = `"inout"` (domyślnie), `"in"`, `"out"`, `"linear"`, przechodząc od kamery gry w `blend` sekund. Potem zostaje w ostatnim punkcie. Najwyżej 16 punktów; `rc.camera(...)` albo `rc.cameraPath(nil)` kończy; kończy się razem z wyścigiem |
+
+Mgła, słońce, światła, woda i kamera trybu zostają na jego ekranie końcowym (zwykły wyścig resetuje je na mecie);
+resetują się po wyjściu z wyścigu, przy *Jeszcze raz* i przy przeładowaniu. *Jeszcze raz* (na stronie wyników,
+restart z menu pauzy, sieciowe „jeszcze raz”) zwalnia wszystko jak wyjście z wyścigu: kamerę i jej ścieżkę,
+wstrzymanie końca, pauzę i spowolnienie, ukryty HUD i jego części, przechwycenie wejścia, wygląd, dźwięki i tło
+dźwiękowe, zamiany `rc.setCar` (każdy samochód znowu własny, z własnym malowaniem i fizyką), drużyny, teksty listy,
+rozkazy SI, blokadę przywracania, zegary i komunikaty; potem tryb zaczyna się od nowa (`onModeLoad`, `onModeStart`).
+Dopóki tryb trzyma muzykę wyścigu w ciszy (`rc.levelAmbient(false, -100)`), muzyka strony wyników też milczy, żeby
+słychać było własny dźwięk końcowy trybu; muzyka wraca po wyjściu z wyścigu. Pliki dźwiękowe: `.wav` (PCM albo
+Microsoft ADPCM), `.ogg`, `.mp3`, `.au`.
+
+### Wyścigi sieciowe
+
+W tej wersji tryby działają tylko w grze jednoosobowej (Szybki wyścig). API jest przygotowane na tryby prowadzone przez
+hosta: każda decyzja (zegar, odliczanie, komunikaty, drużyny, zamiany samochodów, rozkazy SI, wyniki) przechodzi przez
+wywołania trybu, więc w wyścigu sieciowym decydować będzie tylko skrypt hosta, a pozostałe komputery to pokażą.
+
+### Przykład „Zombie”
+
+`docs\modding\examples\zombies` to berek: po 10 s przewagi („Uciekaj!”) losowy samochód (twój albo SI) staje się zombie:
+Warhammer w zielonym malowaniu moro, i jeździ jak on. Zombie, które dotknie ocalałego (zderzenie samochodów nie słabsze
+niż ustawiona siła), zaraża go. Zombie wygrywają, gdy zarażeni są wszyscy; ocalali — gdy skończy się czas (domyślnie
+5:00). Wyniki pokazują, kto przeżył i kto kiedy został zarażony. Zombie SI gonią najbliższego ocalałego osiągalnego
+drogą, ocalali SI uciekają. Nad rundą wisi szarozielona mgła, tym gęstsza, im mniej ocalałych; przy zarażeniu pasek
+świetlny pada robi się zielony i pad wibruje; `rc.stats` liczy rundy i wygrane jako zombie / ocalały. Zamiast listy
+zawodników pokazuje własny pasek stanu (ocalali / zombie, pozostały czas, twoja rola). Strona ustawień: limit czasu
+(1 .. 10 min), przewaga, siła zarażenia, mgła wł. / gęstość, agresja SI zombie, ostrożność SI ocalałych, tło dźwiękowe
+wł. / głośność, bicie serca wł. / zasięg, co dzieje się z ocalałym, który wypadnie (staje się zombie / odpada), po
+jakim czasie wypadnięte zombie wraca na drogę, kamera końcowa wł. / wył. Wszystkie teksty w czterech językach. W tym
+trybie gra nie przywraca samochodów (`respawn = false`): samochód na dachu staje na koła w miejscu. Na końcu rundy
+scena końcowa (nie w VR): przy wygranej zombie kamera wznosi się od ostatniej ofiary nad zebrane zombie, przy wygranej
+ocalałych okrąża ich; wjeżdża tablica (czasy przetrwania, kto kogo złapał, ostatni ocalały, podsumowanie, twój
+najlepszy czas przetrwania z `rc.stats`); nie da się jej pominąć, trwa tyle co scena albo dźwięk końcowy (najwyżej
+30 s), potem pojawia się strona wyników. Aby zagrać, skopiuj folder `zombies` do folderu `mods` gry.
+
+Jego dźwięki to własne pliki autora moda i **nie** należą do publicznego przykładu; włóż własne do folderu `sounds\`
+moda (każdy brakujący jest pomijany z ostrzeżeniem): `zombie_ambient.mp3` (tło dźwiękowe rundy zamiast tła poziomu),
+`thunder01.wav` (nowe zombie, słychać je na całej trasie z miejsca zdarzenia), `zombie_attack*.wav` (zarażające
+zderzenie, przy obu samochodach), `heart_beat.wav` (twoje bicie serca od strony najbliższego zombie, szybsze, gdy się
+zbliża), `zombie_outro.mp3` (wygrana zombie), `humans_win.wav` (wygrana ocalałych).
+
+## 7. Ograniczenia piaskownicy
 
 - Dostępne: podstawowe funkcje Lua, `table`, `string`, `math`, `utf8`, `coroutine` oraz `os.clock`, `os.time`,
   `os.date`.
@@ -311,7 +473,7 @@ pierwszeństwo i przetrwa aktualizacje moda.
 - Skrypty nigdy nie zapisują plików gry, plików modów ani zapisów graczy; zapisywane są tylko pliki ustawień i
   statystyk moda.
 
-## 7. Obsługa błędów
+## 8. Obsługa błędów
 
 - Błąd ładowania, błąd wykonania lub przekroczony budżet przerywa tylko to wywołanie. Gra działa dalej.
 - Każdy błąd trafia do `game_dbg.log` jako `Lua [mod] co: plik:wiersz: komunikat` (ze śladem stosu).
@@ -319,7 +481,7 @@ pierwszeństwo i przetrwa aktualizacje moda.
   Zastosuj na ekranie Mody (albo zapisz plik w trybie dewelopera, zob. niżej).
 - Gdy wywołanie zużyło ponad 80 % budżetu, pojawia się jedno ostrzeżenie.
 
-## 8. Tryb dewelopera (`RcCarsRe.exe -dev`)
+## 9. Tryb dewelopera (`RcCarsRe.exe -dev`)
 
 - Błędy i ostrzeżenia widać w oknie konsoli: wiersze błędów są czerwone, ostrzeżeń żółte (zarówno Lua, jak i gry);
   błędy pojawiają się też na czerwonym pasku w grze.
@@ -329,7 +491,7 @@ pierwszeństwo i przetrwa aktualizacje moda.
   moda są ładowane ponownie (mody zip: Zastosuj). Przeładowanie kończy też wszystkie zastąpienia kamery, pogody i
   paska świetlnego.
 
-## 9. Przykłady
+## 10. Przykłady
 
 `docs/modding/examples/` zawiera cztery kompletne mody. Skopiuj folder do `mods\` obok `RcCarsRe.exe`:
 
@@ -340,6 +502,7 @@ pierwszeństwo i przetrwa aktualizacje moda.
 - `drift_air`: gdy samochód gracza 1 ląduje po skoku, pokazuje czas w powietrzu, daje krótką wibrację i błysk paska
   świetlnego oraz zapamiętuje przez `rc.stats` najlepszy czas w powietrzu dla każdej trasy i liczbę skoków.
 - `photo_mode`: tryb fotograficzny (P lub przycisk Back / Share / Create pada): wyścig wstrzymany, HUD ukryty, swobodna kamera, F12 / A zdjęcie, rc.stats je liczy (API 1.2).
+- `zombies`: tryb gry (API 1.4): berek / zarażanie przeciw SI, zob. „Tryby gry”.
 
 Minimalny skrypt:
 
@@ -364,7 +527,7 @@ function onFrame(dt)
 end
 ```
 
-## 10. Rozwiązywanie problemów
+## 11. Rozwiązywanie problemów
 
 | Problem | Sprawdź |
 |---|---|

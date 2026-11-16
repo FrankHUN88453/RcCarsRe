@@ -58,7 +58,8 @@ bekapcsolhatók, és a változás újraindítás nélkül érvényesül. Hogyan 
 
 A modok kis, homokozóban futó Lua szkripteket hozhatnak: HUD szövegek és képek, hangok, kör- és
 ellenőrzőpont-események, és egy beállítási oldal a Modok menüben. A szkriptek csak helyben hatnak (HUD, hang,
-napló); a versenyt és a játék fájljait nem változtathatják meg. Dokumentáció a teljes API-val és három példamoddal (események, kamera, köd, nap és víz, rezgés és fénycsík, saját statisztika):
+napló); a versenyt és a játék fájljait nem változtathatják meg. Dokumentáció a teljes API-val és példamodokkal (események, kamera, köd, nap és víz, rezgés és fénycsík, saját statisztika, fotó mód,
+és a **Zombik**, egy teljesen új játékmód csak az API-ból: az új módok a Quick race Mode sorában jelennek meg):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 A Lua 5.4 az MIT-licenc alapján szerepel ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).

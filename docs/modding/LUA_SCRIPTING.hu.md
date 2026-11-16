@@ -7,10 +7,11 @@ körök, autók, helyezések, köridők), reagálhat eseményekre (kör, ellenő
 verseny vége ...), és helyi dolgokat tehet: szöveget, képet és téglalapot rajzol a HUD-ra, hangot játszik le,
 mozgatja a kamerát, megváltoztatja a ködöt, a napot és a fényeket, rezegteti a kontrollert, a naplóba ír, és
 megőrzi a saját beállításait és statisztikáit. A szkriptek nem változtathatják meg a versenyt, az autókat és a
-játék fájljait.
+játék fájljait, egy kivétellel: egy játékmód szkriptje (6. fejezet, API 1.4) vezeti a saját versenyei
+szabályait (egyelőre egyjátékos módban).
 
 A nyelv a [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT-licenc, lásd
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.2**-es verziójáé.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.4**-es verziójáé.
 
 ## 1. Áttekintés
 
@@ -94,7 +95,7 @@ A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorren
 
 | Függvény | Visszaad |
 |---|---|
-| `rc.version` | az API verziója (`"1.2"`) |
+| `rc.version` | az API verziója (`"1.4"`) |
 | `rc.modName` | a mod neve |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = a HUD versenyórája másodpercben (a rajt előtt -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (az 1. játékos célba ért), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér) |
@@ -238,6 +239,7 @@ Ezek egy fotómód, egy visszajátszó kamera és hasonló eszközök építők�
 | `rc.timeScale(s)` | lassítás, `s` 0,05 .. 1 (1 = normál). Hálózati versenyben `false`. Teljes megállításhoz az `rc.pause` való |
 | `rc.hud(show)` | `false` elrejti a játék saját HUD-ját (műszerfal, mérők, nyíl, térkép, versenyzőlista, üzenetek, chatsorok, ShowFps); a szkript `rc.hudText` / `rc.hudImage` / `rc.hudRect` elemei továbbra is rajzolódnak |
 | `rc.screenshot{hideScriptHud =, scale =}` | a következő képkockát PNG-ként menti a `RcCarsRe.exe` melletti `Screenshots` mappába, és visszaadja a fájl nevét. A `hideScriptHud` (alapból `true`) kihagyja abból a képkockából a szkript saját HUD-elemeit. Csak `scale = 1` (a kép, ahogy látszik) készül |
+| `rc.graphics{shadows =, reflections =}` | (1.3) a `Shadows` / `Reflections` átkapcsolása erre a játékmenetre: mindkettő `"original"`, `"realtime"` vagy `"off"` (a hiányzó mező marad). Az `rc.graphics()` a mostani `{shadows, reflections}` értéket adja. Az ini nem íródik: a játék visszaáll az értékeire a verseny végén, a verseny elhagyásakor, a modok újratöltésekor és szkripthiba esetén. Az első valós idejűre kapcsolás elkészíti az árnyéktérképeket / tükröződő kockákat (rövid akadás, néhány száz MB videomemória); a későbbi kapcsolások ezeket használják. Hálózati versenyben is szabad (csak a saját képed változik) |
 
 - Az `rc.camera{...}` a `roll = fok` mezőt is elfogadja (pozitív: az óramutató járásával egyezően), és a verseny
   szünetelése alatt is működik.
@@ -302,7 +304,169 @@ figyelmeztetést ad, és az adott műveletnél az alapérték marad. Gombnevek: 
 példánya a `RcCarsRe.exe` melletti `Saves\Mods\photo_mode.controls.ini` fájlban (az
 `rc.readUserFile("controls.ini")` olvassa) erősebb nála, és túléli a mod frissítéseit.
 
-## 6. A homokozó korlátai
+Fotómódban az R (kontrolleren Y / Triangle) ki-be kapcsolja a valós idejű árnyékot és tükröződést (`realtimeGfx=` a controls.ini-ben); kilépéskor az ini értékei térnek vissza.
+
+## 6. Játékmódok (1.4)
+
+Egy mod **játékmódot** adhat a játékhoz: saját szabályokat egy normál pályán, a játékos a gépi autók ellen. Az a mod,
+amelyik az `onLoad`-ban meghívja az `rc.registerMode`-ot, megjelenik a Gyors verseny képernyő **Mód** sorában (a
+verseny összefoglaló oldalán, az ellenfelek ügyessége alatt): *Verseny* (a normál verseny) és minden regisztrált mód,
+a játék nyelvén írt nevével. A mód versenye a választott pályát tölti be a megszokott módon; a gépi ellenfelek száma
+az ügyességtől függ (könnyű 3, normál 4, nehéz 5), legfeljebb a mód `maxCars` értéke.
+
+### Szövegek négy nyelven
+
+Az API minden szövege lehet egy sztring vagy egy nyelvi tábla `{en = "...", hu = "...", ru = "...", pl = "..."}`.
+A játék aktuális nyelve választ (ugyanaz, mint a menüké, `[Modern] Language`); ha arra nincs szöveg, vagy más a
+nyelv, az angol jön, ha az sincs, az első, ami van.
+
+| Függvény | Jelentés |
+|---|---|
+| `rc.lang()` | a játék nyelve: `"en"`, `"hu"`, `"ru"`, `"pl"`, vagy a nyelvi mappa neve kisbetűvel |
+| `rc.text(t)` | a `t` nyelvi tábla szövege az aktuális nyelven (egy sztring változatlanul jön vissza) |
+
+### Mód regisztrálása
+
+```lua
+rc.registerMode{
+  id = "zombies",                                   -- betűk, számjegyek, _ . - (egyedi)
+  name = {en = "Zombies", hu = "Zombik", ru = "Зомби", pl = "Zombie"},
+  description = {en = "...", hu = "...", ru = "...", pl = "..."},
+  minCars = 2, maxCars = 6,                          -- 1 .. 6
+  checkpoints = false,                               -- nincs ellenőrzőpont, GPS-nyíl, kör és célvonal
+  laps = false,                                      -- nincs körszámláló (alapból: mint a checkpoints)
+  ai = "script",                                     -- "script": a gépi autók az rc.ai-t követik; "race": versenyeznek
+  respawn = false,                                   -- a játék nem tesz vissza autót (alapból true)
+  hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- a HUD részei, amelyeket a mód elrejt
+}
+```
+
+`checkpoints = false` mellett a versenyben nincs ellenőrzőpont, GPS-nyíl, rossz irány jelzés, körszámlálás és
+célvonal; a helyezés képe rejtve van. Csak a rajt (3, 2, 1, GO) a játéké; GO után a mód szkriptje vezeti a versenyt,
+és az `rc.mode.finish` zárja. A vízbe vagy a pályáról leeső autót a játék a gépi autók vezetési vonalainak
+legközelebbi pontjára teszi vissza (`respawn = false` mellett ehelyett a mód dönt).
+
+### A mód eseményei (csak a mód saját modjának)
+
+| Esemény | Mikor |
+|---|---|
+| `onModeLoad(info)` | a mód versenye megjelent (az első képkockától, a rajt visszaszámlálása előtt), és újra a *Verseny újra*-nál. Itt állítsd be a mód kinézetét (köd, hangulat) |
+| `onModeStart(info)` | GO-nál. `info` = az `rc.race()` táblája, plusz `id`, `player` (a játékos autója), `minCars`, `maxCars` |
+| `onModeFrame(dt)` | minden képkockában, amíg a verseny fut (szünetben és a cél után nem) |
+| `onModeTimer()` | az `rc.mode.timer` időzítője lejárt |
+| `onModeEnd()` | egyszer, az `rc.mode.finish` után |
+| `onRespawnBlocked(car, reason)` | `respawn = false` mellett: a játék visszatette volna az autót. `reason` = `"water"` (2 s víz alatt), `"bounds"` (kiesett a pályáról), `"zone"` (leesés-zóna), `"key"` (a játékos Reset gombja), `"flip"` (a tetején fekvő autót nem lehetett talpra állítani), `"stuck"` (a fizika szerint beragadt), `"timed"`, `"aiemu"`. Autónként legfeljebb másodpercenként egyszer |
+
+A normál események (`onRaceStart`, `onCollision`, `onFrame`, ...) továbbra is minden modhoz eljutnak.
+
+### A mód vezérlése (csak a futó mód saját szkriptje hívhatja)
+
+| Függvény | Jelentés |
+|---|---|
+| `rc.mode.countdown(seconds, text)` | nagy visszaszámlálás a képernyő közepén (a műszerfal számbetűivel), utána a `text` 1,5 másodpercig |
+| `rc.mode.message(text, seconds, color)` | üzenet a képernyő közepe alatt (alapból 3 s, fehér; `0xRRGGBB`) |
+| `rc.mode.timer(seconds)` | a HUD felső órája a hátralévő időt mutatja (az utolsó 10 s-ban pirosan); `nil` / 0 kikapcsolja |
+| `rc.mode.timeLeft()` | a hátralévő másodpercek, időzítő nélkül `nil` |
+| `rc.mode.clock()` | másodpercek a mód kezdete (GO) óta, a szünetek nélkül |
+| `rc.mode.active()` | a futó mód azonosítója, normál versenyben `nil` (bármelyik mod hívhatja) |
+| `rc.mode.freeze(car, on)` | megállít egy autót (nincs gáz, fékez), pl. előnyhöz |
+| `rc.mode.listText(car, text, color)` | a HUD versenyzőlistája a különbség helyett ezt a szöveget mutatja (`nil`: újra a különbséget) |
+| `rc.mode.finish(results, title)` | lezárja a versenyt: minden autó befut, utána jön a játék célba érése és az eredménylap ezekkel a sorokkal. `results` = `{{car =, place =, text =}, ...}`; a `title` (alapból a mód neve) a szövegoszlop fejléce |
+| `rc.mode.holdEnd{seconds =, skippable =}` | az `rc.mode.finish` után: a játék eredménylapja `seconds` (alapból 20, legfeljebb 60) másodperccel később jön, egy zárójelenethez. `skippable = false` (alapból): a játékos gombjai addig semmit sem tesznek, a szünetmenü sem nyílik meg (az ablak bezárása továbbra is kilép). Szkripthiba vagy újratöltés azonnal feloldja |
+| `rc.mode.showResults()` | a visszatartott eredménylap most |
+| `rc.mode.respawn(on)` | a játék autó-visszahelyezései be / ki erre a versenyre (a kezdőérték a `registerMode` `respawn`-ja). Kikapcsolva az oldalán vagy tetején fekvő autót 2 s után a helyén talpra állítja (a játékosét is), de máshová nem viszi |
+| `rc.mode.respawnCar(car)` | a mód visszateszi az autót a gépi vezetési vonalak legközelebbi pontjára (`respawn = false` mellett is) |
+| `rc.setCarTeam(car, n)` | az autó csapata (bármilyen szám; `rc.car(i).team`) |
+| `rc.setCar(car, {model =, paint =, physics =})` | az autó a játék egy másik RC autójává válik: `model` = `"Overkill"`, `"Buggy"` vagy `"Warhammer"`, `paint` = 1 .. 4 (a garázs festései), `physics` = `true` (alapból: annak az autónak a fizikájával is megy) vagy `false` (csak a kinézet). `rc.setCar(car, nil)`: újra a saját autója. Az autó megtartja a fejlesztéseit, a hangjait és a mozgását |
+| `rc.carName(car)` | a versenyző neve |
+| `rc.distance(car1, car2)` | két autó távolsága méterben |
+
+Az `rc.car(i)` táblában (1.4) van még `team`, `model` (`""` a sajátja), `paint` (0 a sajátja), `frozen` és
+`contacts`: az autók, amelyekhez ebben a képkockában hozzáért (`{2, 4}`).
+
+### Parancsok a gépi autóknak (`ai = "script"`)
+
+Az `rc.ai(car, order)` egy gépi autót vezet (játékos autóját soha; akkor `false`-t ad vissza). A gépi autó a pálya
+gépi vezetési vonalaiból épített úthálón megy (a víz és a szakadékok melletti pontok jelölve: ott lassít és távol
+marad attól az oldaltól), a legrövidebb utakat keresi, beragadáskor kitér, és ha a mód engedi a visszahelyezést,
+a sokszor beragadt autót visszateszi.
+
+| Parancs | Jelentés |
+|---|---|
+| `{mode = "chase", target = car}` | nekimegy annak az autónak: amíg messze van, az úton, 8 m-en belül egyenesen (a sebessége szerint kicsit elé célozva) |
+| `{mode = "chase", targets = {cars}}` | ugyanez az autók közül az úton legközelebbire; csak akkor vált célt, ha egy másik egyértelműen közelebb van (alapból: minden más csapatbeli autó) |
+| `{mode = "flee", from = {cars}, caution = m}` | menekül ezektől az autóktól (alapból: minden más csapatbeli): az úton 30 m-en belüli, tőlük legtávolabbi helyre (a legközelebbi számít legjobban), amelynek az útja `caution` métert (alapból 6) tart tőlük; sarokba szorítva a legtöbb helyet adó úton, az üldöző mellett elmenve; a közvetlenül előtte lévő üldözőt kikerüli |
+| `{mode = "stop"}` | fékezve áll |
+| `{mode = "path"}` | újra a normál versenyvonal |
+
+Minden parancs elfogad `speed` = 0,1 .. 1 gázt (alapból 1). A beragadt autó (kb. 2 s haladás nélkül) előre balra
+és jobbra tapogat (a pálya falai, a víz és a szakadékok akadálynak számítanak), az akadálytól elfordított orral
+hátrál, a szabadabb oldalon egy kerülőponton megkerüli, és folytatja; 4 s-ig azon az oldalon marad, hogy ne próbálja
+újra ugyanazt a vonalat. Engedélyezett visszahelyezés mellett a 12 s alatt háromszor beragadt autót visszateszi.
+
+### Hangok és a pálya háttérhangjai (1.4)
+
+| Függvény | Jelentés |
+|---|---|
+| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | a hang azonosítóval (`false`, ha nem szól). `loop = true`: az `rc.stopSound`-ig. `car = i` / `pos = {x, y, z}`: a világban elhelyezve, DirectSound 3D-vel, mint a játék saját hangjai: `minDist` (5) méteren belül teljes hangerő a kamerától, `maxDist`-ig (60) halkul -20 dB-ig, ennél halkabb nem lesz, az irányából szól (egy autó hangja követi az autót; osztott képernyőn irány nélkül). `pan` = -1 .. 1, vagy `panTo = {x, y, z}`: abból az irányból, ahogy a kamera látja. Modonként egyszerre legfeljebb 16; a verseny elhagyásakor mind elhallgat |
+| `rc.stopSound(handle)` | leállítja |
+| `rc.soundPlaying(handle)` | `true`, amíg szól |
+| `rc.listModFiles(folder, pattern)` | a mod saját fájljai abban a mappában, amelyek neve illeszkedik (`*`, `?`), pl. `rc.listModFiles("sounds", "hit*.wav")`; az üres fájlok kimaradnak (figyelmeztetéssel) |
+| `rc.levelAmbient(on, music)` | `false` elnémítja a pálya ismétlődő háttérhangjait (a háttérzajokat, a tengert, a patakokat és a vízesést; az egyszeri hangok, pl. egy tárgy vagy kő ütközése és a hangok, beszéd maradnak, ahogy az autók, az effektek és a szkriptek hangjai is); `music` = a verseny zenéjének dB-je (0 ahogy be van állítva, -100 néma; a menük zenéje marad). A verseny elhagyásakor, újratöltéskor és a mod szkriptjeinek leállásakor visszaáll |
+| `rc.fog{...}` | (1.4) `true`-t ad vissza, ha a játék köde látszik (Beállítások / Videó köd be) |
+| `rc.hudParts{racerList =, place =, lap =, gps =, map =, timer =, speedo =, boost =, wrongWay =}` | `false` elrejti a játék HUD-jának azt a részét (versenyzőlista, helyezés, körszámláló, GPS-nyíl, minitérkép, óra, sebességmérő, gyorsító, a rossz irány jelzése és hangja), `true` újra megmutatja; argumentum nélkül annak táblája, ami látszik. A verseny elhagyásakor, a *Verseny újra*-nál, újratöltéskor és a szkriptek leállásakor visszaáll |
+| `rc.textWidth(text, size)` | egy `rc.hudText` szöveg szélessége a 800 x 600-as egységekben, abban a méretben (a felületméretezéssel és a HudScale-lel együtt), a szövegek középre vagy egymás alá igazításához; az `rc.hudText` utolsó argumentuma lehet `{align = "center"}` (vagy `"right"`) is |
+| `rc.replaceTexture(gameTexture, modFile)` | a játék ilyen nevű (már betöltött, pl. egy gyalogos vagy egy sirály) textúrája a mod képét mutatja (`.png` / `.dds` / `.csi`, a `textures\` vagy `skins\` alatt is) az `rc.restoreTexture(name)` / `rc.restoreTextures()` hívásig; textúra-újratöltés után is megmarad; a verseny elhagyásakor, a *Verseny újra*-nál, újratöltéskor és a szkriptek leállásakor magától visszaáll. A mod `Textures\` mappájában lévő fájllal szemben csak addig hat, amíg a szkript akarja |
+
+### Kamerautak (1.4)
+
+| Függvény | Jelentés |
+|---|---|
+| `rc.cameraPath{points = {{pos =, target =, fov =, roll =}, ...}, duration =, ease =, blend =}` | az 1. játékos versenykamerája végigrepül a pontokon: sima görbe a helyeken és egy a célpontokon, a `fov` / `roll` közöttük, `duration` másodperc alatt (alapból 10), `ease` = `"inout"` (alapból), `"in"`, `"out"`, `"linear"`, a játék kamerájától `blend` másodperc alatt átúszva. Utána az utolsó ponton marad. Legfeljebb 16 pont; az `rc.camera(...)` vagy az `rc.cameraPath(nil)` befejezi; a versennyel véget ér |
+
+A mód köde, napja, fényei, vize és kamerája a zárólapján megmarad (a normál verseny a célnál visszaállítja); a
+verseny elhagyásakor, a *Verseny újra*-nál és újratöltéskor áll vissza. A *Verseny újra* (az eredménylapon, a
+szünetmenü újraindítása, a hálózati újra) mindent felold, mint a verseny elhagyása: a kamerát és az útját, a vég
+visszatartását, a szünetet és a lassítást, a rejtett HUD-ot és részeit, a bemenet elfogását, a kinézetet, a hangokat
+és a háttérhangot, az `rc.setCar` cseréket (minden autó újra a saját modelljével, festésével és fizikájával), a
+csapatokat, a listaszövegeket, a gépi parancsokat, a visszahelyezés tiltását, az időzítőket és az üzeneteket; utána a
+mód elölről indul (`onModeLoad`, `onModeStart`). Amíg egy mód
+némán tartja a verseny zenéjét (`rc.levelAmbient(false, -100)`), az eredménylap zenéje is néma marad, így a mód saját
+zárózenéje hallatszik; a zene a verseny elhagyásakor tér vissza. Hangfájlok: `.wav` (PCM vagy Microsoft ADPCM),
+`.ogg`, `.mp3`, `.au`.
+
+### Hálózati versenyek
+
+Ebben a verzióban a módok csak egyjátékos módban futnak (Gyors verseny). Az API a gazdagép által vezetett módokra
+készült: minden döntés (időzítő, visszaszámlálás, üzenetek, csapatok, autócserék, gépi parancsok, eredmények) a mód
+hívásain megy át, így hálózati versenyben csak a gazdagép szkriptje dönt majd, a többi gép megmutatja.
+
+### A Zombik példa
+
+A `docs\modding\examples\zombies` egy fogócska: 10 másodperc előny után ("Fuss!") egy véletlen autó (a tiéd vagy egy
+gépié) lesz a zombi: egy Warhammer zöld terepszínű festéssel, és úgy is megy. A túlélőhöz (a beállított erősségű
+autó-autó érintéssel) hozzáérő zombi megfertőzi. A zombik nyernek, ha mindenki fertőzött; a túlélők, ha lejár az idő
+(alapból 5:00). Az eredmények mutatják, ki élte túl és ki mikor fertőződött. A gépi zombik az úton elérhető
+legközelebbi túlélőt üldözik, a gépi túlélők menekülnek. Szürkészöld köd üli meg a kört, egyre sűrűbb, ahogy fogynak a
+túlélők; fertőzéskor a kontroller fénysávja zöld lesz és rezeg; az `rc.stats` számolja a köröket és a győzelmeket
+zombiként / túlélőként. A versenyzőlista helyén saját állapotsort mutat (túlélők / zombik, hátralévő idő, a
+szereped). Beállítások oldala: időkorlát (1 .. 10 perc), előny, fertőzés erőssége, köd be / sűrűség, a
+zombi MI agresszivitása, a túlélő MI óvatossága, háttérhang be / hangerő, szívverés be / hatótáv, mi lesz a kieső
+túlélővel (zombi lesz / kiesik), mennyi idő múlva kerül vissza az útra a kiesett zombi, zárókamera be / ki. Minden
+szöveg négy nyelven. Ebben a módban a játék nem tesz vissza autót (`respawn = false`): a tetején fekvő autót a helyén
+talpra állítja. A kör végén zárójelenet (VR-ben nem): a zombik győzelménél az utolsó áldozat fölül emelkedik a kamera
+a zombik fölé, a túlélőknél körbejárja őket; becsúszik egy eredménytábla (túlélési idők, ki kit kapott el, az utolsó
+túlélő, az összesítés, a legjobb túlélési időd az `rc.stats`-ból); nem lehet átugrani, a jelenet vagy a zárózene
+hosszáig tart (legfeljebb 30 s), utána jön az eredménylap. A játékhoz másold a `zombies` mappát a játék `mods`
+mappájába.
+
+A hangjai a mod szerzőjének saját fájljai, és **nem** részei a nyilvános példának; tedd a sajátjaidat a mod `sounds\`
+mappájába (a hiányzókat figyelmeztetéssel kihagyja): `zombie_ambient.mp3` (a kör háttérhangja a pályáé helyett),
+`thunder01.wav` (új zombi, az egész pályán hallható onnan, ahol történt), `zombie_attack*.wav` (a fertőző érintés,
+mindkét autónál), `heart_beat.wav` (a szívverésed a legközelebbi zombi irányából, gyorsabban, ahogy közeledik),
+`zombie_outro.mp3` (a zombik nyernek), `humans_win.wav` (a túlélők nyernek).
+
+## 7. A homokozó korlátai
 
 - Elérhető: a Lua alapfüggvényei, a `table`, `string`, `math`, `utf8`, `coroutine`, valamint az `os.clock`,
   `os.time`, `os.date`.
@@ -314,7 +478,7 @@ példánya a `RcCarsRe.exe` melletti `Saves\Mods\photo_mode.controls.ini` fájlb
   hatalmas `string.rep` vagy egy bonyolult minta) az utasításszámlálás nem méri; maradjanak egyszerűek a szkriptek.
 - A szkriptek soha nem írnak játékfájlt, modfájlt vagy játékosmentést; csak a mod beállítás- és statisztikafájlja íródik.
 
-## 7. Hibakezelés
+## 8. Hibakezelés
 
 - Egy betöltési hiba, futási hiba vagy túllépett keret csak azt a hívást szakítja meg. A játék megy tovább.
 - Minden hiba bekerül a `game_dbg.log` fájlba `Lua [mod] mi: fájl:sor: üzenet` alakban (veremkiírással).
@@ -322,7 +486,7 @@ példánya a `RcCarsRe.exe` melletti `Saves\Mods\photo_mode.controls.ini` fájlb
   majd nyomd meg az Alkalmaz gombot a Modok képernyőn (vagy fejlesztői módban mentsd a fájlt, lásd lent).
 - Ha egy hívás a keret több mint 80 %-át használta, egyszer figyelmeztetés jön.
 
-## 8. Fejlesztői mód (`RcCarsRe.exe -dev`)
+## 9. Fejlesztői mód (`RcCarsRe.exe -dev`)
 
 - A hibák és figyelmeztetések a konzolablakban látszanak: a hibasorok pirosak, a figyelmeztetések sárgák (Lua és a
   játék egyaránt); a hibák a játékon belüli piros sávban is megjelennek.
@@ -333,7 +497,7 @@ példánya a `RcCarsRe.exe` melletti `Saves\Mods\photo_mode.controls.ini` fájlb
   mod szkriptjei újratöltődnek (zip modoknál: Alkalmaz). Az újratöltés minden kamera-, időjárás- és
   fénysáv-felülírást is megszüntet.
 
-## 9. Példák
+## 10. Példák
 
 A `docs/modding/examples/` négy teljes modot tartalmaz. Másolj egy mappát a `RcCarsRe.exe` melletti `mods\` mappába:
 
@@ -344,6 +508,7 @@ A `docs/modding/examples/` négy teljes modot tartalmaz. Másolj egy mappát a `
 - `drift_air`: amikor az 1. játékos autója egy ugrás után landol, kiírja a levegőben töltött időt, röviden rezeg és
   felvillantja a fénysávot, valamint `rc.stats`-szal megőrzi pályánként a legjobb repülési időt és az ugrások számát.
 - `photo_mode`: fotómód (P vagy a kontroller Back / Share / Create gombja): a verseny megáll, a HUD eltűnik, szabad kamera, F12 / A a fotó, az rc.stats számolja őket (API 1.2).
+- `zombies`: játékmód (API 1.4): fogócska / fertőzés a gépi autók ellen, lásd "Játékmódok".
 
 Egy minimális szkript:
 
@@ -368,7 +533,7 @@ function onFrame(dt)
 end
 ```
 
-## 10. Hibaelhárítás
+## 11. Hibaelhárítás
 
 | Probléma | Ellenőrizd |
 |---|---|

@@ -60,7 +60,8 @@ restartu. Jak to działa:
 
 Mody mogą zawierać małe skrypty Lua działające w piaskownicy: teksty i obrazy na HUD, dźwięki, zdarzenia okrążeń i
 punktów kontrolnych oraz stronę ustawień w menu Mody. Skrypty działają tylko lokalnie (HUD, dźwięk, dziennik); nie
-mogą zmieniać wyścigu ani plików gry. Dokumentacja z pełnym API i trzema przykładowymi modami (zdarzenia, kamera, mgła, słońce i woda, wibracje i pasek świetlny, własne statystyki):
+mogą zmieniać wyścigu ani plików gry. Dokumentacja z pełnym API i przykładowymi modami (zdarzenia, kamera, mgła, słońce i woda, wibracje i pasek świetlny, własne statystyki, tryb
+zdjęć oraz **Zombie** — cały nowy tryb gry zbudowany tylko z API: nowe tryby pojawiają się w wierszu Mode w Quick race):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 jest używane na licencji MIT ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).

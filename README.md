@@ -57,7 +57,8 @@ the changes without a restart. How it works:
 
 Mods can carry small, sandboxed Lua scripts: HUD texts and pictures, sounds, lap and checkpoint events and a
 settings page in the Mods menu. Scripts act only locally (HUD, sound, log); they cannot change the race or the game's
-files. Documentation with the full API and three example mods (events, camera, fog, sun and water, rumble and light bar, own stats):
+files. Documentation with the full API and example mods (events, camera, fog, sun and water, rumble and light bar, own stats, a photo mode, and
+**Zombies**, a whole new game mode built only from the API: new modes appear in the Quick race's Mode row):
 [English](docs/modding/LUA_SCRIPTING.en.md) | [Magyar](docs/modding/LUA_SCRIPTING.hu.md) |
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 is used under the MIT licence ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).

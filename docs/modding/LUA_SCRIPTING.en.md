@@ -6,10 +6,11 @@ RcCarsRe can run small Lua scripts that come with a mod. A script can read the r
 positions, lap times), react to events (a lap, a checkpoint, a hit, a jump, an overtake, the pause, the race end
 ...) and do local things: draw texts, pictures and boxes on the HUD, play sounds, move the camera, change the fog,
 the sun and the lights, rumble the gamepad, write to the log and keep its own settings and statistics.
-Scripts cannot change the race, the cars or the game's files.
+Scripts cannot change the race, the cars or the game's files, with one exception: the script of a game mode
+(chapter 6, API 1.4) runs the rules of its own races (single player for now).
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.2**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.4**.
 
 ## 1. Overview
 
@@ -91,7 +92,7 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.2"`) |
+| `rc.version` | the API version string (`"1.4"`) |
 | `rc.modName` | the mod's name |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes) |
@@ -233,6 +234,7 @@ computer.
 | `rc.timeScale(s)` | slow motion, `s` 0.05 .. 1 (1 = normal). Returns `false` in a network race. For a full stop use `rc.pause` |
 | `rc.hud(show)` | `false` hides the game's own HUD (cockpit, dials, arrow, map, racer list, messages, chat lines, ShowFps); the script's `rc.hudText` / `rc.hudImage` / `rc.hudRect` still draw |
 | `rc.screenshot{hideScriptHud =, scale =}` | saves the next frame as a PNG in `Screenshots` next to `RcCarsRe.exe` and returns the file name. `hideScriptHud` (default `true`) leaves the script's own HUD items out of that frame. Only `scale = 1` (the frame as shown) is made |
+| `rc.graphics{shadows =, reflections =}` | (1.3) switches `Shadows` / `Reflections` for this session: `"original"`, `"realtime"` or `"off"` each (missing fields stay). `rc.graphics()` returns `{shadows, reflections}` now. The ini is not written: the game goes back to its values at the race's end, the race's exit, a mod reload and a script error. The first switch to realtime makes the shadow maps / reflection cubes (a short stall, a few hundred MB of video memory); they are kept for later switches. Allowed in network races (only your picture changes) |
 
 - `rc.camera{...}` also takes `roll = degrees` (positive clockwise), and it keeps working while the race is paused.
 - The input is read only while the game's window is in front and no text field (a menu's edit box, the network
@@ -295,7 +297,170 @@ default stays for that action. Key names: `A` .. `Z`, `0` .. `9`, `F1` .. `F12`,
 `WheelDown`, `None`; pad names as in `rc.input.pad`. A player's own copy in `Saves\Mods\photo_mode.controls.ini`
 next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over it and survives mod updates.
 
-## 6. Sandbox limits
+In photo mode R (pad Y / Triangle) switches realtime shadows and reflections on and off (`realtimeGfx=` in controls.ini); leaving restores the ini's values.
+
+## 6. Game modes (1.4)
+
+A mod can add a **game mode**: its own rules on a normal track, with the player against AI cars. A mod that calls
+`rc.registerMode` in its `onLoad` is listed in the Quick race screen's **Mode** row (Race summary page, under the
+opponents' skill): *Race* (the normal race) and every registered mode, by its name in the game's language. The
+mode's race loads the chosen track as usual; the number of AI opponents comes from the skill (easy 3, normal 4,
+hard 5), at most the mode's `maxCars`.
+
+### Texts in four languages
+
+Every text of the API can be a string or a language table `{en = "...", hu = "...", ru = "...", pl = "..."}`. The
+game's current language picks the text (the same as the menus' language, `[Modern] Language`); without an entry
+for it, or in another language, the English one is used, and without that the first one there is.
+
+| Function | Meaning |
+|---|---|
+| `rc.lang()` | the game's language: `"en"`, `"hu"`, `"ru"`, `"pl"`, or the language folder's name in lower case |
+| `rc.text(t)` | the text of a language table `t` in the current language (a string comes back as it is) |
+
+### Registering a mode
+
+```lua
+rc.registerMode{
+  id = "zombies",                                   -- letters, digits, _ . - (unique)
+  name = {en = "Zombies", hu = "Zombik", ru = "Зомби", pl = "Zombie"},
+  description = {en = "...", hu = "...", ru = "...", pl = "..."},
+  minCars = 2, maxCars = 6,                          -- 1 .. 6
+  checkpoints = false,                               -- no checkpoints, GPS arrow, laps or finish line
+  laps = false,                                      -- no lap counter (default: as checkpoints)
+  ai = "script",                                     -- "script": the AI cars obey rc.ai; "race": they race
+  respawn = false,                                   -- the game puts no car back (default true)
+  hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- the HUD parts the mode hides
+}
+```
+
+With `checkpoints = false` the race has no checkpoints, no GPS arrow, no wrong-way sign, no lap counting and no
+finish line; the place picture is hidden. Only the start (3, 2, 1, GO) is the game's; after GO the mode's script
+runs the race and ends it with `rc.mode.finish`. A car that falls into the water or off the track is put back on
+the nearest point of the AI cars' driving lines (with `respawn = false` the mode decides instead).
+
+### Mode events (only to the mode's own mod)
+
+| Event | When |
+|---|---|
+| `onModeLoad(info)` | the mode's race came up (from its first frame, before the start's countdown), and again at *Race again*. Set the mode's look here (fog, ambience) |
+| `onModeStart(info)` | at GO. `info` = the `rc.race()` table plus `id`, `player` (the player's car), `minCars`, `maxCars` |
+| `onModeFrame(dt)` | every frame while the race runs (not while paused, not after the finish) |
+| `onModeTimer()` | the timer of `rc.mode.timer` reached 0 |
+| `onModeEnd()` | once after `rc.mode.finish` |
+| `onRespawnBlocked(car, reason)` | with `respawn = false`: the game would have put the car back. `reason` = `"water"` (2 s under water), `"bounds"` (out of the level), `"zone"` (a fall-off volume), `"key"` (the player's Reset key), `"flip"` (a car on its roof could not be set upright), `"stuck"` (the physics found it stuck), `"timed"`, `"aiemu"`. At most once a second per car |
+
+The normal events (`onRaceStart`, `onCollision`, `onFrame`, ...) keep coming to every mod.
+
+### Mode control (only the running mode's own script may call these)
+
+| Function | Meaning |
+|---|---|
+| `rc.mode.countdown(seconds, text)` | a big countdown in the middle of the screen (the cockpit's number font), then `text` for 1.5 s |
+| `rc.mode.message(text, seconds, color)` | a message under the middle of the screen (default 3 s, white; `0xRRGGBB`) |
+| `rc.mode.timer(seconds)` | the HUD's top timer shows the remaining time (red in its last 10 s); `nil` / 0 switches it off |
+| `rc.mode.timeLeft()` | the remaining seconds, `nil` without a timer |
+| `rc.mode.clock()` | seconds since the mode's start (GO), without the pauses |
+| `rc.mode.active()` | the running mode's id, `nil` in a normal race (any mod may call it) |
+| `rc.mode.freeze(car, on)` | holds a car (no throttle, the brake), e.g. for a head start |
+| `rc.mode.listText(car, text, color)` | the HUD's racer list shows this text instead of the gap (`nil`: the gap again) |
+| `rc.mode.finish(results, title, options)` | ends the race: every car finishes, then the game's finish and its results page with these rows. `results` = `{{car =, place =, text =}, ...}`; `title` (default: the mode's name) heads the text column. `options = {resultsDelay = s}` holds the results page that long (an end shot), `rc.mode.showResults()` lets it come at once |
+| `rc.mode.holdEnd{seconds =, skippable =}` | after `rc.mode.finish`: the game's results page comes `seconds` (default 20, at most 60) later, for an end shot. `skippable = false` (the default): the player's keys and buttons do nothing meanwhile and the pause menu does not open (closing the window still quits). A script error or a reload ends the hold at once |
+| `rc.mode.showResults()` | the held results page now |
+| `rc.mode.respawn(on)` | the game's car resets on / off for this race (the start value is `registerMode`'s `respawn`). Off, a car on its side or roof is still set upright where it is after 2 s (the player's too), but never moved elsewhere |
+| `rc.mode.respawnCar(car)` | the mode puts the car back on the nearest point of the AI driving lines (works with `respawn = false` too) |
+| `rc.setCarTeam(car, n)` | the car's team (any number; `rc.car(i).team`) |
+| `rc.setCar(car, {model =, paint =, physics =})` | the car turns into another RC car of the game: `model` = `"Overkill"`, `"Buggy"` or `"Warhammer"`, `paint` = 1 .. 4 (the garage's paints), `physics` = `true` (default: it drives with that car's physics profile too) or `false` (only the look). `rc.setCar(car, nil)`: its own car again. The car keeps its upgrades, its sounds and its motion |
+| `rc.carName(car)` | the racer's name |
+| `rc.distance(car1, car2)` | metres between two cars |
+
+`rc.car(i)` also has (1.4) `team`, `model` (`""` its own), `paint` (0 its own), `frozen` and `contacts`: the cars
+it touched this frame (`{2, 4}`).
+
+### AI orders (`ai = "script"`)
+
+`rc.ai(car, order)` drives an AI car (a player's car is never driven; returns `false` then). The AI drives on a
+road graph made of the track's AI driving lines (with the points beside water and edges marked: it slows there
+and keeps off that side), finds its ways with shortest paths, reverses and turns when stuck, and is put back on
+the graph when it stays stuck or in deep water.
+
+| Order | Meaning |
+|---|---|
+| `{mode = "chase", target = car}` | drives into that car: along the road while it is far, straight at it (a little ahead by its speed) within 8 m |
+| `{mode = "chase", targets = {cars}}` | the same for the nearest of these cars by the road; it changes target only when another is clearly nearer (default: every car of another team) |
+| `{mode = "flee", from = {cars}, caution = m}` | drives away from these cars (default: every car of another team): to the place within 30 m by the road that is farthest from them (the nearest one counts most) and whose way keeps `caution` metres (default 6) from them; when cornered, the way with the most room, past the chaser; it also steers round a chaser just ahead |
+| `{mode = "stop"}` | stands with the brake |
+| `{mode = "path"}` | the normal racing line again |
+
+Every order takes `speed` = 0.1 .. 1, the throttle (default 1). A stuck car (no progress for about 2 s) probes left
+and right ahead (the level's walls, water and edges count as blocked), backs off turning its nose away from the
+obstacle, drives a waypoint round it on the freer side and then goes on; for 4 s it keeps to that side so it does
+not take the same line again. With respawns allowed a car stuck three times within 12 s is put back.
+
+### Sounds and the level's ambience (1.4)
+
+| Function | Meaning |
+|---|---|
+| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | the sound with a handle (`false` when it does not play). `loop = true`: until `rc.stopSound`. `car = i` / `pos = {x, y, z}`: placed in the world through DirectSound 3D like the game's own sounds: full volume within `minDist` (5) metres of the camera, quieter down to -20 dB at `maxDist` (60) and never quieter, from its direction (a car's sound follows the car; in the split screen without direction). `pan` = -1 .. 1, or `panTo = {x, y, z}`: from that direction as seen by the camera. At most 16 a mod at a time; all stop when the race is left |
+| `rc.stopSound(handle)` | stops it |
+| `rc.soundPlaying(handle)` | `true` while it plays |
+| `rc.listModFiles(folder, pattern)` | the mod's own files in that folder whose names match (`*`, `?`), e.g. `rc.listModFiles("sounds", "hit*.wav")`; empty files are left out (with a warning) |
+| `rc.levelAmbient(on, music)` | `false` mutes the level's looping ambience (its background loops, the sea, streams and waterfalls; one-shot sounds such as a prop's or a stone's hit and voices stay, as do the cars', effects' and scripts' sounds); `music` = dB for the race's music (0 as set, -100 silent; the menus' music stays). Given back when the race is left, at a reload and when the mod's scripts stop |
+| `rc.fog{...}` | (1.4) returns `true` when the game's fog shows (Options / Video fog on) |
+| `rc.hudParts{racerList =, place =, lap =, gps =, map =, timer =, speedo =, boost =, wrongWay =}` | `false` hides that part of the game's HUD (the racer list, the place, the lap counter, the GPS arrow, the minimap, the timer, the speedometer, the boost gauge, the wrong-way sign and its sound), `true` shows it again; without an argument the table of what shows. Given back when the race is left, at *Race again*, at a reload and when the scripts stop |
+| `rc.textWidth(text, size)` | the width of a `rc.hudText` text in the 800 x 600 units at that size (UI scale and HudScale included), to centre or line up texts; `rc.hudText` also takes `{align = "center"}` (or `"right"`) as its last argument |
+| `rc.replaceTexture(gameTexture, modFile)` | the game texture of that name (one already loaded, e.g. a pedestrian's or a seagull's skin) shows the mod's picture (`.png` / `.dds` / `.csi`, also under `textures\` or `skins\`) until `rc.restoreTexture(name)` / `rc.restoreTextures()`; kept through a texture reload; given back automatically when the race is left, at *Race again*, at a reload and when the scripts stop. Unlike a file in the mod's `Textures\` folder it acts only while the script wants it |
+
+### Camera paths (1.4)
+
+| Function | Meaning |
+|---|---|
+| `rc.cameraPath{points = {{pos =, target =, fov =, roll =}, ...}, duration =, ease =, blend =}` | player 1's race camera flies through the points: a smooth curve through the places and one through the targets, `fov` / `roll` in between, in `duration` seconds (default 10), `ease` = `"inout"` (default), `"in"`, `"out"`, `"linear"`, from the game's camera in `blend` seconds. Then it stays at the last point. At most 16 points; `rc.camera(...)` or `rc.cameraPath(nil)` ends it; it ends with the race |
+
+A mode's fog, sun, lights, water and camera stay on its end screen (a normal race resets them at the finish);
+they are reset when the race is left, at *Race again* and at a reload. *Race again* (on the results page, the
+pause menu's restart, a network race's race again) releases everything as leaving the race does: the camera and its
+path, the end's hold, the pause and the time scale, the hidden HUD and its parts, the input capture, the look, the
+sounds and the ambience, the `rc.setCar` swaps (every car its own model, paint and physics again), the teams, list
+texts, AI orders, the respawn block, the timers and the messages; then the mode starts afresh (`onModeLoad`,
+`onModeStart`). While a
+mode keeps the race music silent (`rc.levelAmbient(false, -100)`), the results page's music stays silent too, so a
+mode's own ending sound is heard; the music comes back when the race is left. Sound files: `.wav` (PCM or
+Microsoft ADPCM), `.ogg`, `.mp3`, `.au`.
+
+### Network races
+
+In this version the modes run in single player only (the Quick race). The API is made for host-run modes:
+every decision (timer, countdown, messages, teams, model swaps, AI orders, results) goes through the mode's
+calls, so in a network race only the host's script will decide and the other machines will show it.
+
+### The Zombies example
+
+`docs\modding\examples\zombies` is a tag game: after a 10 s head start ("Run!") a random car (yours or an AI's)
+becomes the zombie: a Warhammer in its green camouflage paint, driving like one. A zombie that touches a survivor
+(a car-car contact of at least the set strength) infects it. The zombies win when everyone is infected; the
+survivors win when the time (default 5:00) runs out. The results show who survived and who was infected when.
+AI zombies chase the nearest survivor they can reach by the road, AI survivors flee. A grey-green fog lies over
+the round, thicker as the survivors get fewer; your gamepad's light bar turns green and it rumbles when you are
+infected; `rc.stats` counts the rounds and the wins as zombie / survivor. In place of the racer list it shows its
+own status (survivors / zombies, the time left, your role). Its Settings page: time limit (1 .. 10
+min), head start, infection strength, fog on / strength, zombie AI aggression, survivor AI caution, ambience on /
+volume, heartbeat on / range, what happens to a survivor who falls out (becomes a zombie / is out), the delay before
+a fallen zombie is back on the road, end camera on / off. All texts are in the four languages. The game puts no
+car back in this mode (`respawn = false`): a car on its roof is set upright where it is. When the round ends, an end
+shot (not in VR): the zombies' win rises from the last victim over the gathered zombies, the survivors' win
+orbits them; a scoreboard (survival times, who caught whom, the last survivor, the totals, your best survival time
+from `rc.stats`) slides in; it can not be skipped and lasts the shot or the ending's sound (at most 30 s), then
+the results page comes. To play it, copy the folder `zombies` into the game's `mods` folder.
+
+Its sounds are the mod author's own files and are **not** part of the public example; put your own into the
+mod's `sounds\` folder (each missing one is skipped with a warning): `zombie_ambient.mp3` (the round's ambience in
+place of the level's), `thunder01.wav` (a new zombie, heard over the whole track from where it happened),
+`zombie_attack*.wav` (the infecting contact, at both cars), `heart_beat.wav` (your heartbeat from the nearest
+zombie's direction, faster as it comes nearer), `zombie_outro.mp3` (the zombies win), `humans_win.wav` (the
+survivors win).
+
+## 7. Sandbox limits
 
 - Available: the Lua base functions, `table`, `string`, `math`, `utf8`, `coroutine`, and `os.clock`, `os.time`,
   `os.date`.
@@ -308,7 +473,7 @@ next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over i
 - Scripts never write game files, mod files or player saves; the only files written are the mod's settings and
   statistics files.
 
-## 7. Error handling
+## 8. Error handling
 
 - A load error, a runtime error or an exceeded budget aborts only that call. The game goes on.
 - Every error is logged as `Lua [mod] what: file:line: message` in `game_dbg.log` (with a traceback).
@@ -316,7 +481,7 @@ next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over i
   script, then press Apply on the Mods screen (or save the file in developer mode, see below).
 - A call that used more than 80 % of the budget gives one warning.
 
-## 8. Developer mode (`RcCarsRe.exe -dev`)
+## 9. Developer mode (`RcCarsRe.exe -dev`)
 
 - Errors and warnings are shown on the console window: error lines red, warning lines yellow (Lua and game
   alike); errors also appear in the red overlay in the game.
@@ -326,7 +491,7 @@ next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over i
 - Hot reload: the `.lua` files of folder mods are checked once a second; when one changes, that mod's scripts are
   loaded again (zip mods: use Apply). A reload also ends every camera, weather and light-bar override.
 
-## 9. Examples
+## 10. Examples
 
 `docs/modding/examples/` has four complete mods. Copy a folder into `mods\` next to `RcCarsRe.exe`:
 
@@ -336,6 +501,7 @@ next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over i
 - `drift_air`: when player 1's car lands after a jump it shows the time in the air, gives a short rumble and a
   light-bar flash, and keeps the best air time per track and the jump count with `rc.stats`.
 - `photo_mode`: a photo mode (P or the pad's Back / Share / Create): the race paused, the HUD hidden, a free camera, F12 / A for a photo, rc.stats counts them (API 1.2).
+- `zombies`: a game mode (API 1.4): a tag / infection game against the AI, see "Game modes".
 
 A minimal script:
 
@@ -360,7 +526,7 @@ function onFrame(dt)
 end
 ```
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Problem | Check |
 |---|---|

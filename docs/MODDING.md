@@ -46,7 +46,7 @@ is read as if that folder were not there.
 
 A mod can also hold Lua scripts (`*.lua` in its root or in `scripts\`): HUD texts and pictures, sounds, its own
 settings page in the Mods screen, and (API 1.1) the camera, fog, sun, lights, gamepad rumble / light bar and its own
-statistics, all local to your PC. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md).
+statistics, all local to your PC. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md). A mod can also add a **game mode** of its own (Lua API 1.4: its rules, AI orders, car swaps, end shot): it appears in the Quick race screen's Mode row; the example is `docs\modding\examples\zombies` (copy it into `mods\` to play it).
 
 ## Formats
 

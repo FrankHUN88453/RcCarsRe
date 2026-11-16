@@ -46,7 +46,7 @@ benne `BetterSkins\Sound\...`), azt úgy olvassa, mintha az a mappa ott sem lenn
 
 Egy mod Lua-szkripteket is tartalmazhat (`*.lua` a gyökerében vagy a `scripts\` mappában): HUD-szövegek és képek,
 hangok, saját beállítóoldal a Mods képernyőn, valamint (API 1.1) kamera, köd, nap, fények, kontroller-rezgés /
-fénysáv és saját statisztikák, mind csak a saját gépeden. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md).
+fénysáv és saját statisztikák, mind csak a saját gépeden. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md). Egy mod saját **játékmódot** is adhat (Lua API 1.4: szabályok, gépi parancsok, autócsere, zárójelenet): a Gyors verseny képernyő Mód sorában jelenik meg; a példa a `docs\modding\examples\zombies` (a játékhoz másold a `mods\` mappába).
 
 ## Formátumok
 
