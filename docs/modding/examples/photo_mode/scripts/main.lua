@@ -215,7 +215,7 @@ function onFrame(dt)
     lt, rt = deadzone1(p.lt, triggerDz), deadzone1(p.rt, triggerDz)
   end
   -- look
-  yaw = yaw + m.dx * 0.003 + rx2 * 2.0 * dt
+  yaw = yaw - m.dx * 0.003 - rx2 * 2.0 * dt   -- (mouse right / stick right turn right)
   pitch = math.max(-1.5, math.min(1.5, pitch - m.dy * 0.003 + ry2 * 1.5 * dt))
   -- move: forward / back along the view (up and down too), sideways along the view's horizontal right,
   -- up / down straight (no inertia: without input the camera stands still)
