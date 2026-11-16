@@ -34,8 +34,8 @@ Az RcCarsRe egy rajongói projekt, amely a 2003-as **RC Cars** (Creat Studio) PC
 - Képtérbeli környezeti takarás (SSAO), valós idejű pontfények a lámpáknál és lámpásoknál
 - 1280 x 800 (Steam Deck) és bármilyen más felbontás; a menük és a HUD az ablakkal méreteződnek
 - Xbox, PlayStation 4 és DualSense kontrollerek: rezgés, DualSense adaptív ravaszok, a verseny GPS-nyilát követő
-  fénycsík (a menükben sárga), a lövések érezhetők a DualSense haptikáján (kísérleti), és USB-n hallhatók a kontroller
-  hangszóróján; kilépéskor a kontroller visszaáll
+  fénycsík (a menükben sárga), a lövések érezhetők a DualSense haptikáján; kilépéskor a kontroller
+  visszaáll
 - Osztott képernyő két játékosnak (billentyűzet és egér vagy két kontroller), egérrel irányított kamera
 - VR OpenXR-en keresztül (SteamVR és mások), Discord-állapot négy nyelven
 

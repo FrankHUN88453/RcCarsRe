@@ -9,7 +9,7 @@ the sun and the lights, rumble the gamepad, write to the log and keep its own se
 Scripts cannot change the race, the cars or the game's files.
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.1**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.2**.
 
 ## 1. Overview
 
@@ -80,6 +80,7 @@ Define these as global functions. All are optional.
 | `onPause(kind)` | (1.1) the race was paused: `kind` = `"menu"` (the pause menu) or `"quick"` (the quick pause) |
 | `onResume()` | (1.1) the race goes on after a pause |
 | `onChat(name, text)` | (1.1) a network chat line arrived (your own lines too); `name` = the sender, `""` for server and game lines. Read only |
+| `onCountdown(n)` | (1.1) the race's countdown, at the same moment as its numbers and beeps: `n` = 3, 2, 1, and 0 at GO |
 
 `car` is the car's number, 1 .. `rc.race().cars`. `results` is a list in place order; each entry has `car`,
 `place`, `finished`, `time`, `bestLap` (missing when none), `lap`, `name`.
@@ -90,7 +91,7 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.1"`) |
+| `rc.version` | the API version string (`"1.2"`) |
 | `rc.modName` | the mod's name |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes) |
@@ -162,7 +163,6 @@ is left and when the mods are reloaded. When several mods set the same effect, t
 | `rc.rumble(strength, seconds, player)` | a vibration pulse: `strength` 0 .. 1 (times your `Rumble` setting), at most 3 seconds. Felt only while the player's car races, like the game's own rumble |
 | `rc.lightBar(r, g, b, player)` | the DualSense / DualShock 4 light bar in this colour (0 .. 255 each) until `rc.lightBar(nil, player)`. It wins over the game's colour; with `LightBar=off` nothing changes |
 | `rc.triggers{right =, left =, player =}` | DualSense adaptive triggers while the player's car races: each trigger `"off"` or `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (a continuous resistance from `start` of the travel). Until `rc.triggers(nil, player)`; ignored with `AdaptiveTriggers=0` |
-| `rc.padSound(name, player, volume)` | the sound (the mod's own file or the game's, as `rc.playSound`) through the pad's own speaker: needs `PadSpeaker=1` and the pad on a USB cable (over Bluetooth the pads have no Windows audio device); never through the PC's speakers. `volume` 0 .. 1, times the effects' volume and `PadSpeakerVolume`. The DualShock 4's USB audio device is its headset output |
 | `rc.padHaptics(name, player, volume)` | the sound (the mod's own file or the game's) on the DualSense's voice-coil haptics, over Bluetooth and USB: needs `PadHaptics=1` and `Rumble` above 0; not while the game is in the background or the race is paused. `volume` 0 .. 1, times `PadHapticsVolume`. A DualShock 4 has no voice coils |
 
 A mod reload ends the script light bar and the trigger effects.
@@ -216,6 +216,73 @@ rc.options{
   menu widgets (switches, sliders, buttons); changes are stored at once and `onOptionChanged(key, value)` runs.
 - `rc.setting(key)` returns the option's value; **Default values** on the page restores the defaults.
 
+### Input, pause, HUD and screenshots (1.2)
+
+These are the building blocks of a photo mode, a replay camera and similar tools. All of them act only on your
+computer.
+
+| Function | Meaning |
+|---|---|
+| `rc.input.key(name)` | `true` while the key is held. Names: letters `"A"` .. `"Z"`, digits, `"F1"` .. `"F24"`, `"Space"`, `"Enter"`, `"Esc"`, `"Tab"`, `"Backspace"`, `"Shift"`, `"Ctrl"`, `"Alt"`, `"Up"`, `"Down"`, `"Left"`, `"Right"`, `"PageUp"`, `"PageDown"`, `"Home"`, `"End"`, `"Insert"`, `"Delete"`, `"Plus"`, `"Minus"`, `"Comma"`, `"Period"`, `"MouseLeft"`, `"MouseRight"`, `"MouseMiddle"` |
+| `rc.input.pressed(name)` | `true` in the frame the key went down |
+| `rc.input.mouse()` | `{dx, dy, wheel, left, right, middle}`: the mouse's movement and wheel notches in this frame, its buttons |
+| `rc.input.pad(player)` | `{lx, ly, rx, ry, lt, rt, kind, buttons = {..}, pressed = {..}}` or `nil` without a pad. Sticks -1 .. 1 (up positive), triggers 0 .. 1, `kind` = `"xinput"`, `"ds4"`, `"dualsense"`. Button names (each also in `pressed`, true in the frame it went down): `a` / `cross`, `b` / `circle`, `x` / `square`, `y` / `triangle`, `lb` / `l1`, `rb` / `r1`, `back` / `view` / `share` / `create` / `select`, `start` / `menu` / `options`, `ls` / `l3`, `rs` / `r3`, `guide` / `ps`, `touchpad`, `mute`; `buttons` also has the D-pad as `up`, `down`, `left`, `right` |
+| `rc.input.capture(on)` | while on, the car's controls and the pause menu's Esc / Start do not get the keys and buttons: the script uses them (for example the sticks for a free camera) |
+| `rc.pause(on)` | freezes the race like the pause menu (race clock, physics, AI, water, particles, animations, sounds) without opening a menu. Returns `false` in a network race |
+| `rc.timeScale(s)` | slow motion, `s` 0.05 .. 1 (1 = normal). Returns `false` in a network race. For a full stop use `rc.pause` |
+| `rc.hud(show)` | `false` hides the game's own HUD (cockpit, dials, arrow, map, racer list, messages, chat lines, ShowFps); the script's `rc.hudText` / `rc.hudImage` / `rc.hudRect` still draw |
+| `rc.screenshot{hideScriptHud =, scale =}` | saves the next frame as a PNG in `Screenshots` next to `RcCarsRe.exe` and returns the file name. `hideScriptHud` (default `true`) leaves the script's own HUD items out of that frame. Only `scale = 1` (the frame as shown) is made |
+
+- `rc.camera{...}` also takes `roll = degrees` (positive clockwise), and it keeps working while the race is paused.
+- The input is read only while the game's window is in front and no text field (a menu's edit box, the network
+  chat line) is being typed in. Keyboard-only and pad-only both work.
+- Not available (no cheap way in the renderer): depth of field, `scale = 2` screenshots, exposure / saturation.
+  For the mood use `rc.fog`, `rc.sun`, `rc.lights` and `rc.water`.
+- Safety: the pause, the hidden HUD, the input capture, the time scale and the camera are released by the game when
+  the race ends, when the race is left, when the mods are reloaded and when a script has errors or is switched off,
+  so a broken script can never leave the game frozen or without its HUD.
+
+### Building a photo mode
+
+The example mod `photo_mode` (in `docs/modding/examples/`) is a complete photo mode in one script. Its core:
+
+```lua
+local on, pos, yaw, pitch = false, nil, 0, 0
+
+local function enter()
+  local c = rc.cameraInfo()
+  if not c or not rc.pause(true) then return end      -- no race camera, or a network race
+  rc.hud(false)
+  rc.input.capture(true)
+  pos = {c.pos.x, c.pos.y, c.pos.z}
+  yaw, pitch = math.atan(c.dir.x, c.dir.z), math.asin(c.dir.y)
+  on = true
+end
+
+local function leave()
+  rc.camera(nil); rc.hud(true); rc.input.capture(false); rc.pause(false)
+  on = false
+end
+
+function onFrame(dt)
+  if rc.input.pressed("P") then if on then leave() else enter() end return end
+  if not on then return end
+  if rc.input.pressed("Esc") then leave() return end
+  local m = rc.input.mouse()
+  yaw, pitch = yaw + m.dx * 0.003, math.max(-1.5, math.min(1.5, pitch - m.dy * 0.003))
+  local fx, fy, fz = math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)
+  local go = (rc.input.key("W") and 1 or 0) - (rc.input.key("S") and 1 or 0)
+  pos = {pos[1] + fx * go * 6 * dt, pos[2] + fy * go * 6 * dt, pos[3] + fz * go * 6 * dt}
+  rc.camera{pos = pos, target = {pos[1] + fx, pos[2] + fy, pos[3] + fz}}
+  if rc.input.pressed("F12") then rc.screenshot{hideScriptHud = true}; rc.stats.add("photos") end
+  rc.hudText(400, 580, "F12 photo, P leave", 0xffffffff, 0.7, "center")
+end
+```
+
+The example adds pad controls (left / right stick, triggers up / down, bumpers roll, D-pad FOV, A for a photo, the
+Back / View / Share / Create button to toggle - configurable), strafing, speed, roll, field of view and its own
+settings page.
+
 ## 6. Sandbox limits
 
 - Available: the Lua base functions, `table`, `string`, `math`, `utf8`, `coroutine`, and `os.clock`, `os.time`,
@@ -249,13 +316,14 @@ rc.options{
 
 ## 9. Examples
 
-`docs/modding/examples/` has three complete mods. Copy a folder into `mods\` next to `RcCarsRe.exe`:
+`docs/modding/examples/` has four complete mods. Copy a folder into `mods\` next to `RcCarsRe.exe`:
 
 - `laptime_hud`: the race time (the same as the HUD's timer), the current, last and best lap time of player 1 in a
   box, in the game's time format; options for the best lap, the size and the corner.
 - `checkpoint_sound`: plays the mod's own `sounds\ding.wav` at each checkpoint of player 1 and flashes its number.
 - `drift_air`: when player 1's car lands after a jump it shows the time in the air, gives a short rumble and a
   light-bar flash, and keeps the best air time per track and the jump count with `rc.stats`.
+- `photo_mode`: a photo mode (P or the pad's Back / Share / Create): the race paused, the HUD hidden, a free camera, F12 / A for a photo, rc.stats counts them (API 1.2).
 
 A minimal script:
 

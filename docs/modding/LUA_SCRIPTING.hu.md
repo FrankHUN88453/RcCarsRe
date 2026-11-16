@@ -10,7 +10,7 @@ megőrzi a saját beállításait és statisztikáit. A szkriptek nem változtat
 játék fájljait.
 
 A nyelv a [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT-licenc, lásd
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.1**-es verziójáé.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.2**-es verziójáé.
 
 ## 1. Áttekintés
 
@@ -83,6 +83,7 @@ Ezeket globális függvényként kell megadni. Mind elhagyható.
 | `onPause(kind)` | (1.1) a verseny szünetel: `kind` = `"menu"` (a szünetmenü) vagy `"quick"` (a gyors szünet) |
 | `onResume()` | (1.1) a verseny folytatódik a szünet után |
 | `onChat(name, text)` | (1.1) hálózati chatsor érkezett (a saját soraid is); `name` = a küldő, szerver- és játéksoroknál `""`. Csak olvasható |
+| `onCountdown(n)` | (1.1) a verseny visszaszámlálása, a számokkal és a sípszóval egy pillanatban: `n` = 3, 2, 1, és 0 a GO-nál |
 
 A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorrendű lista; minden eleme: `car`,
 `place`, `finished`, `time`, `bestLap` (hiányzik, ha nincs), `lap`, `name`.
@@ -93,7 +94,7 @@ A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorren
 
 | Függvény | Visszaad |
 |---|---|
-| `rc.version` | az API verziója (`"1.1"`) |
+| `rc.version` | az API verziója (`"1.2"`) |
 | `rc.modName` | a mod neve |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = a HUD versenyórája másodpercben (a rajt előtt -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (az 1. játékos célba ért), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér) |
@@ -167,7 +168,6 @@ hatást.
 | `rc.rumble(strength, seconds, player)` | rezgésimpulzus: `strength` 0 .. 1 (szorozva a `Rumble` beállításoddal), legfeljebb 3 másodperc. Csak akkor érezhető, amikor a játékos autója versenyez, mint a játék saját rezgése |
 | `rc.lightBar(r, g, b, player)` | a DualSense / DualShock 4 fénysávja ebben a színben (mindegyik 0 .. 255) az `rc.lightBar(nil, player)` hívásig. Erősebb a játék színénél; `LightBar=off` mellett semmi sem változik |
 | `rc.triggers{right =, left =, player =}` | DualSense adaptív ravaszok, amíg a játékos autója versenyez: mindkét ravasz `"off"` vagy `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (folyamatos ellenállás a lenyomás `start` részétől). Az `rc.triggers(nil, player)` hívásig; `AdaptiveTriggers=0` mellett nem hat |
-| `rc.padSound(name, player, volume)` | a hang (a mod saját fájlja vagy a játéké, mint az `rc.playSound`-nál) a kontroller saját hangszóróján: `PadSpeaker=1` és USB-kábel kell (Bluetooth-on a kontrollereknek nincs Windows hangeszközük); soha nem a PC hangszóróin. `volume` 0 .. 1, szorozva az effekthangerővel és a `PadSpeakerVolume`-mal. A DualShock 4 USB hangeszköze a headset-kimenete |
 | `rc.padHaptics(name, player, volume)` | a hang (a mod saját fájlja vagy a játéké) a DualSense hangtekercses haptikáján, Bluetooth-on és USB-n: `PadHaptics=1` és 0-nál nagyobb `Rumble` kell; nem hat, ha a játék a háttérben van vagy a verseny szünetel. `volume` 0 .. 1, szorozva a `PadHapticsVolume`-mal. A DualShock 4-ben nincs hangtekercs |
 
 A modok újratöltése megszünteti a szkript fénysávját és ravaszhatásait.
@@ -222,6 +222,73 @@ rc.options{
   `onOptionChanged(key, value)`.
 - Az `rc.setting(key)` az opció értékét adja; az oldal **Alapértékek** gombja visszaállítja az alapértékeket.
 
+### Bemenet, szünet, HUD és képernyőkép (1.2)
+
+Ezek egy fotómód, egy visszajátszó kamera és hasonló eszközök építőkövei. Mind csak a saját gépeden hatnak.
+
+| Függvény | Jelentés |
+|---|---|
+| `rc.input.key(name)` | `true`, amíg a billentyű le van nyomva. Nevek: betűk `"A"` .. `"Z"`, számjegyek, `"F1"` .. `"F24"`, `"Space"`, `"Enter"`, `"Esc"`, `"Tab"`, `"Backspace"`, `"Shift"`, `"Ctrl"`, `"Alt"`, `"Up"`, `"Down"`, `"Left"`, `"Right"`, `"PageUp"`, `"PageDown"`, `"Home"`, `"End"`, `"Insert"`, `"Delete"`, `"Plus"`, `"Minus"`, `"Comma"`, `"Period"`, `"MouseLeft"`, `"MouseRight"`, `"MouseMiddle"` |
+| `rc.input.pressed(name)` | `true` abban a képkockában, amikor a billentyűt lenyomták |
+| `rc.input.mouse()` | `{dx, dy, wheel, left, right, middle}`: az egér mozgása és a görgő kattanásai ebben a képkockában, a gombjai |
+| `rc.input.pad(player)` | `{lx, ly, rx, ry, lt, rt, kind, buttons = {..}, pressed = {..}}`, kontroller nélkül `nil`. A karok -1 .. 1 (fel pozitív), a ravaszok 0 .. 1, `kind` = `"xinput"`, `"ds4"`, `"dualsense"`. Gombnevek (mindegyik a `pressed`-ben is, a lenyomás képkockájában igaz): `a` / `cross`, `b` / `circle`, `x` / `square`, `y` / `triangle`, `lb` / `l1`, `rb` / `r1`, `back` / `view` / `share` / `create` / `select`, `start` / `menu` / `options`, `ls` / `l3`, `rs` / `r3`, `guide` / `ps`, `touchpad`, `mute`; a `buttons`-ban a D-pad is ott van: `up`, `down`, `left`, `right` |
+| `rc.input.capture(on)` | amíg be van kapcsolva, az autó irányítása és a szünetmenü Esc / Start gombja nem kapja meg a billentyűket és gombokat: a szkript használja őket (például a karokat egy szabad kamerához) |
+| `rc.pause(on)` | megállítja a versenyt, mint a szünetmenü (versenyóra, fizika, MI, víz, részecskék, animációk, hangok), menü nélkül. Hálózati versenyben `false` |
+| `rc.timeScale(s)` | lassítás, `s` 0,05 .. 1 (1 = normál). Hálózati versenyben `false`. Teljes megállításhoz az `rc.pause` való |
+| `rc.hud(show)` | `false` elrejti a játék saját HUD-ját (műszerfal, mérők, nyíl, térkép, versenyzőlista, üzenetek, chatsorok, ShowFps); a szkript `rc.hudText` / `rc.hudImage` / `rc.hudRect` elemei továbbra is rajzolódnak |
+| `rc.screenshot{hideScriptHud =, scale =}` | a következő képkockát PNG-ként menti a `RcCarsRe.exe` melletti `Screenshots` mappába, és visszaadja a fájl nevét. A `hideScriptHud` (alapból `true`) kihagyja abból a képkockából a szkript saját HUD-elemeit. Csak `scale = 1` (a kép, ahogy látszik) készül |
+
+- Az `rc.camera{...}` a `roll = fok` mezőt is elfogadja (pozitív: az óramutató járásával egyezően), és a verseny
+  szünetelése alatt is működik.
+- A bemenet csak akkor olvasható, ha a játék ablaka van elöl, és senki nem gépel szövegmezőbe (egy menü
+  szövegmezője, a hálózati chatsor). Csak billentyűzettel és csak kontrollerrel is működik.
+- Nem érhető el (a rendererben nincs olcsó út hozzá): mélységélesség, `scale = 2` képernyőkép, expozíció /
+  telítettség. A hangulathoz az `rc.fog`, `rc.sun`, `rc.lights` és `rc.water` való.
+- Biztonság: a szünetet, az elrejtett HUD-ot, a bemenet lefoglalását, a lassítást és a kamerát a játék visszaadja a
+  verseny végén, a verseny elhagyásakor, a modok újratöltésekor, és ha egy szkript hibázik vagy kikapcsol, így egy
+  hibás szkript soha nem hagyhatja a játékot megállítva vagy HUD nélkül.
+
+### Fotómód építése
+
+A `photo_mode` példamod (a `docs/modding/examples/` mappában) egy teljes fotómód egyetlen szkriptben. A magja:
+
+```lua
+local on, pos, yaw, pitch = false, nil, 0, 0
+
+local function enter()
+  local c = rc.cameraInfo()
+  if not c or not rc.pause(true) then return end      -- nincs versenykamera, vagy hálózati verseny
+  rc.hud(false)
+  rc.input.capture(true)
+  pos = {c.pos.x, c.pos.y, c.pos.z}
+  yaw, pitch = math.atan(c.dir.x, c.dir.z), math.asin(c.dir.y)
+  on = true
+end
+
+local function leave()
+  rc.camera(nil); rc.hud(true); rc.input.capture(false); rc.pause(false)
+  on = false
+end
+
+function onFrame(dt)
+  if rc.input.pressed("P") then if on then leave() else enter() end return end
+  if not on then return end
+  if rc.input.pressed("Esc") then leave() return end
+  local m = rc.input.mouse()
+  yaw, pitch = yaw + m.dx * 0.003, math.max(-1.5, math.min(1.5, pitch - m.dy * 0.003))
+  local fx, fy, fz = math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)
+  local go = (rc.input.key("W") and 1 or 0) - (rc.input.key("S") and 1 or 0)
+  pos = {pos[1] + fx * go * 6 * dt, pos[2] + fy * go * 6 * dt, pos[3] + fz * go * 6 * dt}
+  rc.camera{pos = pos, target = {pos[1] + fx, pos[2] + fy, pos[3] + fz}}
+  if rc.input.pressed("F12") then rc.screenshot{hideScriptHud = true}; rc.stats.add("photos") end
+  rc.hudText(400, 580, "F12 photo, P leave", 0xffffffff, 0.7, "center")
+end
+```
+
+A példa ehhez hozzáadja a kontroller-vezérlést (bal / jobb kar, ravaszok fel / le, vállgombok döntés, D-pad
+látószög, A a fotó, a Back / View / Share / Create gomb a ki-be kapcsolás - beállítható), az oldalazást, a
+sebességet, a döntést, a látószöget és a saját beállítóoldalát.
+
 ## 6. A homokozó korlátai
 
 - Elérhető: a Lua alapfüggvényei, a `table`, `string`, `math`, `utf8`, `coroutine`, valamint az `os.clock`,
@@ -255,7 +322,7 @@ rc.options{
 
 ## 9. Példák
 
-A `docs/modding/examples/` három teljes modot tartalmaz. Másolj egy mappát a `RcCarsRe.exe` melletti `mods\` mappába:
+A `docs/modding/examples/` négy teljes modot tartalmaz. Másolj egy mappát a `RcCarsRe.exe` melletti `mods\` mappába:
 
 - `laptime_hud`: az 1. játékos versenyideje (ugyanaz, mint a HUD órája), aktuális, előző és legjobb köride egy
   dobozban, a játék időformátumában; opciók: legjobb kör, méret, sarok.
@@ -263,6 +330,7 @@ A `docs/modding/examples/` három teljes modot tartalmaz. Másolj egy mappát a 
   felvillantja a sorszámát.
 - `drift_air`: amikor az 1. játékos autója egy ugrás után landol, kiírja a levegőben töltött időt, röviden rezeg és
   felvillantja a fénysávot, valamint `rc.stats`-szal megőrzi pályánként a legjobb repülési időt és az ugrások számát.
+- `photo_mode`: fotómód (P vagy a kontroller Back / Share / Create gombja): a verseny megáll, a HUD eltűnik, szabad kamera, F12 / A a fotó, az rc.stats számolja őket (API 1.2).
 
 Egy minimális szkript:
 

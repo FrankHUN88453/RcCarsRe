@@ -9,7 +9,7 @@ odtwarzać dźwięki, poruszać kamerą, zmieniać mgłę, słońce i oświetlen
 oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać wyścigu, samochodów ani plików gry.
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.1**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.2**.
 
 ## 1. Przegląd
 
@@ -80,6 +80,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 | `onPause(kind)` | (1.1) wyścig wstrzymano: `kind` = `"menu"` (menu pauzy) lub `"quick"` (szybka pauza) |
 | `onResume()` | (1.1) wyścig toczy się dalej po pauzie |
 | `onChat(name, text)` | (1.1) przyszedł wiersz czatu sieciowego (także twoje własne); `name` = nadawca, `""` dla wierszy serwera i gry. Tylko do odczytu |
+| `onCountdown(n)` | (1.1) odliczanie wyścigu, w tej samej chwili co cyfry i sygnały: `n` = 3, 2, 1 oraz 0 przy GO |
 
 `car` to numer samochodu, 1 .. `rc.race().cars`. `results` to lista w kolejności miejsc; każdy element ma `car`,
 `place`, `finished`, `time`, `bestLap` (brak, jeśli nie było), `lap`, `name`.
@@ -90,7 +91,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.1"`) |
+| `rc.version` | wersja API (`"1.2"`) |
 | `rc.modName` | nazwa moda |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie) |
@@ -162,7 +163,6 @@ i przeładowanie modów. Gdy kilka modów ustawia ten sam efekt, wygrywa ostatni
 | `rc.rumble(strength, seconds, player)` | impuls wibracji: `strength` 0 .. 1 (razy twoje ustawienie `Rumble`), najwyżej 3 sekundy. Odczuwalny tylko podczas jazdy samochodu gracza w wyścigu, jak własna wibracja gry |
 | `rc.lightBar(r, g, b, player)` | pasek świetlny DualSense / DualShock 4 w tym kolorze (każdy 0 .. 255) do `rc.lightBar(nil, player)`. Ma pierwszeństwo przed kolorem gry; przy `LightBar=off` nic się nie zmienia |
 | `rc.triggers{right =, left =, player =}` | adaptacyjne spusty DualSense podczas jazdy samochodu gracza w wyścigu: każdy spust `"off"` lub `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (stały opór od części `start` skoku). Do `rc.triggers(nil, player)`; przy `AdaptiveTriggers=0` nie działa |
-| `rc.padSound(name, player, volume)` | dźwięk (własny plik moda lub dźwięk gry, jak w `rc.playSound`) przez własny głośnik pada: wymaga `PadSpeaker=1` i podłączenia kablem USB (przez Bluetooth pady nie mają urządzenia audio Windows); nigdy przez głośniki PC. `volume` 0 .. 1, razy głośność efektów i `PadSpeakerVolume`. Urządzenie audio DualShock 4 przez USB to jego wyjście słuchawkowe |
 | `rc.padHaptics(name, player, volume)` | dźwięk (własny plik moda lub dźwięk gry) na haptyce cewkowej DualSense, przez Bluetooth i USB: wymaga `PadHaptics=1` i `Rumble` powyżej 0; nie działa, gdy gra jest w tle lub wyścig jest wstrzymany. `volume` 0 .. 1, razy `PadHapticsVolume`. DualShock 4 nie ma cewek |
 
 Przeładowanie modów kończy pasek świetlny i efekty spustów skryptu.
@@ -217,6 +217,74 @@ rc.options{
   `onOptionChanged(key, value)`.
 - `rc.setting(key)` zwraca wartość opcji; przycisk **Wartości domyślne** na stronie przywraca wartości domyślne.
 
+### Wejście, pauza, HUD i zrzuty ekranu (1.2)
+
+To elementy do budowy trybu fotograficznego, kamery powtórek i podobnych narzędzi. Wszystkie działają tylko na
+twoim komputerze.
+
+| Funkcja | Znaczenie |
+|---|---|
+| `rc.input.key(name)` | `true`, dopóki klawisz jest wciśnięty. Nazwy: litery `"A"` .. `"Z"`, cyfry, `"F1"` .. `"F24"`, `"Space"`, `"Enter"`, `"Esc"`, `"Tab"`, `"Backspace"`, `"Shift"`, `"Ctrl"`, `"Alt"`, `"Up"`, `"Down"`, `"Left"`, `"Right"`, `"PageUp"`, `"PageDown"`, `"Home"`, `"End"`, `"Insert"`, `"Delete"`, `"Plus"`, `"Minus"`, `"Comma"`, `"Period"`, `"MouseLeft"`, `"MouseRight"`, `"MouseMiddle"` |
+| `rc.input.pressed(name)` | `true` w klatce, w której klawisz wciśnięto |
+| `rc.input.mouse()` | `{dx, dy, wheel, left, right, middle}`: ruch myszy i ząbki kółka w tej klatce, jej przyciski |
+| `rc.input.pad(player)` | `{lx, ly, rx, ry, lt, rt, kind, buttons = {..}, pressed = {..}}` lub `nil` bez pada. Gałki -1 .. 1 (w górę dodatnio), spusty 0 .. 1, `kind` = `"xinput"`, `"ds4"`, `"dualsense"`. Nazwy przycisków (każdy także w `pressed`, true w klatce wciśnięcia): `a` / `cross`, `b` / `circle`, `x` / `square`, `y` / `triangle`, `lb` / `l1`, `rb` / `r1`, `back` / `view` / `share` / `create` / `select`, `start` / `menu` / `options`, `ls` / `l3`, `rs` / `r3`, `guide` / `ps`, `touchpad`, `mute`; w `buttons` jest też krzyżak: `up`, `down`, `left`, `right` |
+| `rc.input.capture(on)` | gdy włączone, sterowanie samochodem i Esc / Start menu pauzy nie dostają klawiszy ani przycisków: używa ich skrypt (np. gałek do swobodnej kamery) |
+| `rc.pause(on)` | zatrzymuje wyścig jak menu pauzy (zegar wyścigu, fizyka, SI, woda, cząsteczki, animacje, dźwięki), bez menu. W wyścigu sieciowym zwraca `false` |
+| `rc.timeScale(s)` | spowolnienie, `s` 0,05 .. 1 (1 = normalnie). W wyścigu sieciowym `false`. Do pełnego zatrzymania służy `rc.pause` |
+| `rc.hud(show)` | `false` ukrywa własny HUD gry (kokpit, wskaźniki, strzałkę, mapę, listę zawodników, komunikaty, wiersze czatu, ShowFps); `rc.hudText` / `rc.hudImage` / `rc.hudRect` skryptu nadal się rysują |
+| `rc.screenshot{hideScriptHud =, scale =}` | zapisuje następną klatkę jako PNG w folderze `Screenshots` obok `RcCarsRe.exe` i zwraca nazwę pliku. `hideScriptHud` (domyślnie `true`) pomija w tej klatce elementy HUD skryptu. Powstaje tylko `scale = 1` (klatka tak, jak widać) |
+
+- `rc.camera{...}` przyjmuje też `roll = stopnie` (dodatnio zgodnie z ruchem wskazówek zegara) i działa także
+  podczas pauzy wyścigu.
+- Wejście jest odczytywane tylko wtedy, gdy okno gry jest na pierwszym planie i nikt nie pisze w polu tekstowym
+  (pole menu, wiersz czatu sieciowego). Działa zarówno tylko z klawiaturą, jak i tylko z padem.
+- Niedostępne (renderer nie ma taniej drogi): głębia ostrości, zrzuty `scale = 2`, ekspozycja / nasycenie. Do
+  nastroju służą `rc.fog`, `rc.sun`, `rc.lights` i `rc.water`.
+- Bezpieczeństwo: pauzę, ukryty HUD, przechwycenie wejścia, spowolnienie i kamerę gra zwalnia na końcu wyścigu, przy
+  wyjściu z wyścigu, przy przeładowaniu modów oraz gdy skrypt ma błędy lub zostaje wyłączony, więc wadliwy skrypt
+  nigdy nie zostawi gry zatrzymanej ani bez HUD.
+
+### Budowa trybu fotograficznego
+
+Przykładowy mod `photo_mode` (w `docs/modding/examples/`) to pełny tryb fotograficzny w jednym skrypcie. Jego rdzeń:
+
+```lua
+local on, pos, yaw, pitch = false, nil, 0, 0
+
+local function enter()
+  local c = rc.cameraInfo()
+  if not c or not rc.pause(true) then return end      -- brak kamery wyścigu albo wyścig sieciowy
+  rc.hud(false)
+  rc.input.capture(true)
+  pos = {c.pos.x, c.pos.y, c.pos.z}
+  yaw, pitch = math.atan(c.dir.x, c.dir.z), math.asin(c.dir.y)
+  on = true
+end
+
+local function leave()
+  rc.camera(nil); rc.hud(true); rc.input.capture(false); rc.pause(false)
+  on = false
+end
+
+function onFrame(dt)
+  if rc.input.pressed("P") then if on then leave() else enter() end return end
+  if not on then return end
+  if rc.input.pressed("Esc") then leave() return end
+  local m = rc.input.mouse()
+  yaw, pitch = yaw + m.dx * 0.003, math.max(-1.5, math.min(1.5, pitch - m.dy * 0.003))
+  local fx, fy, fz = math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)
+  local go = (rc.input.key("W") and 1 or 0) - (rc.input.key("S") and 1 or 0)
+  pos = {pos[1] + fx * go * 6 * dt, pos[2] + fy * go * 6 * dt, pos[3] + fz * go * 6 * dt}
+  rc.camera{pos = pos, target = {pos[1] + fx, pos[2] + fy, pos[3] + fz}}
+  if rc.input.pressed("F12") then rc.screenshot{hideScriptHud = true}; rc.stats.add("photos") end
+  rc.hudText(400, 580, "F12 photo, P leave", 0xffffffff, 0.7, "center")
+end
+```
+
+Przykład dodaje sterowanie padem (lewa / prawa gałka, spusty w górę / w dół, bumpery przechył, krzyżak pole
+widzenia, A zdjęcie, przycisk Back / View / Share / Create włącza - do ustawienia), ruch w bok, prędkość, przechył,
+pole widzenia i własną stronę ustawień.
+
 ## 6. Ograniczenia piaskownicy
 
 - Dostępne: podstawowe funkcje Lua, `table`, `string`, `math`, `utf8`, `coroutine` oraz `os.clock`, `os.time`,
@@ -250,7 +318,7 @@ rc.options{
 
 ## 9. Przykłady
 
-`docs/modding/examples/` zawiera trzy kompletne mody. Skopiuj folder do `mods\` obok `RcCarsRe.exe`:
+`docs/modding/examples/` zawiera cztery kompletne mody. Skopiuj folder do `mods\` obok `RcCarsRe.exe`:
 
 - `laptime_hud`: czas wyścigu gracza 1 (ten sam co zegar HUD), bieżące, ostatnie i najlepsze okrążenie w ramce, w
   formacie czasu gry; opcje: najlepsze okrążenie, rozmiar, róg.
@@ -258,6 +326,7 @@ rc.options{
   jego numer.
 - `drift_air`: gdy samochód gracza 1 ląduje po skoku, pokazuje czas w powietrzu, daje krótką wibrację i błysk paska
   świetlnego oraz zapamiętuje przez `rc.stats` najlepszy czas w powietrzu dla każdej trasy i liczbę skoków.
+- `photo_mode`: tryb fotograficzny (P lub przycisk Back / Share / Create pada): wyścig wstrzymany, HUD ukryty, swobodna kamera, F12 / A zdjęcie, rc.stats je liczy (API 1.2).
 
 Minimalny skrypt:
 

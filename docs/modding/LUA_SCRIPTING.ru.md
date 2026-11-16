@@ -9,7 +9,7 @@ RcCarsRe умеет запускать небольшие скрипты Lua, в
 статистику. Скрипты не могут менять гонку, машины и файлы игры.
 
 Язык — [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, лицензия MIT, см.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Здесь описана версия API **1.1**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Здесь описана версия API **1.2**.
 
 ## 1. Обзор
 
@@ -80,6 +80,7 @@ mods\
 | `onPause(kind)` | (1.1) гонка на паузе: `kind` = `"menu"` (меню паузы) или `"quick"` (быстрая пауза) |
 | `onResume()` | (1.1) гонка продолжается после паузы |
 | `onChat(name, text)` | (1.1) пришла строка сетевого чата (и ваши собственные); `name` — отправитель, `""` для строк сервера и игры. Только чтение |
+| `onCountdown(n)` | (1.1) обратный отсчёт гонки, в тот же момент, что и цифры и сигналы: `n` = 3, 2, 1 и 0 на GO |
 
 `car` — номер машины, 1 .. `rc.race().cars`. `results` — список в порядке мест; у каждого элемента есть `car`,
 `place`, `finished`, `time`, `bestLap` (отсутствует, если его нет), `lap`, `name`.
@@ -90,7 +91,7 @@ mods\
 
 | Функция | Возвращает |
 |---|---|
-| `rc.version` | строка версии API (`"1.1"`) |
+| `rc.version` | строка версии API (`"1.2"`) |
 | `rc.modName` | имя мода |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` — таймер гонки HUD в секундах (-1 до старта). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (игрок 1 финишировал), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` или `nil`. `speed` в км/ч; `player` = 1 / 2 у машины игрока; `raceTime` — время машины с момента старта (останавливается на финише) |
@@ -162,7 +163,6 @@ mods\
 | `rc.rumble(strength, seconds, player)` | импульс вибрации: `strength` 0 .. 1 (умножается на вашу настройку `Rumble`), не более 3 секунд. Ощущается, только пока машина игрока едет в гонке, как собственная вибрация игры |
 | `rc.lightBar(r, g, b, player)` | световая панель DualSense / DualShock 4 этого цвета (каждый 0 .. 255) до `rc.lightBar(nil, player)`. Важнее цвета игры; при `LightBar=off` ничего не меняется |
 | `rc.triggers{right =, left =, player =}` | адаптивные курки DualSense, пока машина игрока едет в гонке: каждый курок `"off"` или `{mode = "resistance", start = 0 .. 1, force = 0 .. 1}` (постоянное сопротивление начиная с доли хода `start`). До `rc.triggers(nil, player)`; при `AdaptiveTriggers=0` не действует |
-| `rc.padSound(name, player, volume)` | звук (собственный файл мода или звук игры, как у `rc.playSound`) через собственный динамик геймпада: нужны `PadSpeaker=1` и подключение кабелем USB (по Bluetooth у геймпадов нет звукового устройства Windows); никогда через динамики ПК. `volume` 0 .. 1, умножается на громкость эффектов и `PadSpeakerVolume`. Звуковое устройство DualShock 4 по USB — его выход на гарнитуру |
 | `rc.padHaptics(name, player, volume)` | звук (собственный файл мода или звук игры) на вибромоторах-катушках DualSense, по Bluetooth и USB: нужны `PadHaptics=1` и `Rumble` больше 0; не действует, когда игра в фоне или гонка на паузе. `volume` 0 .. 1, умножается на `PadHapticsVolume`. У DualShock 4 катушек нет |
 
 Перезагрузка модов отменяет световую панель и эффекты курков скрипта.
@@ -217,6 +217,73 @@ rc.options{
   `onOptionChanged(key, value)`.
 - `rc.setting(key)` возвращает значение параметра; **Значения по умолчанию** на странице восстанавливают их.
 
+### Ввод, пауза, HUD и снимки экрана (1.2)
+
+Это строительные блоки фоторежима, камеры повтора и похожих инструментов. Все они действуют только на вашем
+компьютере.
+
+| Функция | Смысл |
+|---|---|
+| `rc.input.key(name)` | `true`, пока клавиша нажата. Имена: буквы `"A"` .. `"Z"`, цифры, `"F1"` .. `"F24"`, `"Space"`, `"Enter"`, `"Esc"`, `"Tab"`, `"Backspace"`, `"Shift"`, `"Ctrl"`, `"Alt"`, `"Up"`, `"Down"`, `"Left"`, `"Right"`, `"PageUp"`, `"PageDown"`, `"Home"`, `"End"`, `"Insert"`, `"Delete"`, `"Plus"`, `"Minus"`, `"Comma"`, `"Period"`, `"MouseLeft"`, `"MouseRight"`, `"MouseMiddle"` |
+| `rc.input.pressed(name)` | `true` в кадре, когда клавишу нажали |
+| `rc.input.mouse()` | `{dx, dy, wheel, left, right, middle}`: движение мыши и щелчки колеса в этом кадре, её кнопки |
+| `rc.input.pad(player)` | `{lx, ly, rx, ry, lt, rt, kind, buttons = {..}, pressed = {..}}` или `nil` без геймпада. Стики -1 .. 1 (вверх положительно), курки 0 .. 1, `kind` = `"xinput"`, `"ds4"`, `"dualsense"`. Имена кнопок (каждая есть и в `pressed`, true в кадре нажатия): `a` / `cross`, `b` / `circle`, `x` / `square`, `y` / `triangle`, `lb` / `l1`, `rb` / `r1`, `back` / `view` / `share` / `create` / `select`, `start` / `menu` / `options`, `ls` / `l3`, `rs` / `r3`, `guide` / `ps`, `touchpad`, `mute`; в `buttons` есть и крестовина: `up`, `down`, `left`, `right` |
+| `rc.input.capture(on)` | пока включено, управление машиной и Esc / Start меню паузы не получают клавиши и кнопки: их использует скрипт (например, стики для свободной камеры) |
+| `rc.pause(on)` | останавливает гонку, как меню паузы (часы гонки, физика, ИИ, вода, частицы, анимации, звуки), без меню. В сетевой гонке возвращает `false` |
+| `rc.timeScale(s)` | замедление, `s` 0,05 .. 1 (1 = обычная скорость). В сетевой гонке `false`. Для полной остановки — `rc.pause` |
+| `rc.hud(show)` | `false` скрывает собственный HUD игры (кокпит, приборы, стрелку, карту, список гонщиков, сообщения, строки чата, ShowFps); `rc.hudText` / `rc.hudImage` / `rc.hudRect` скрипта по-прежнему рисуются |
+| `rc.screenshot{hideScriptHud =, scale =}` | сохраняет следующий кадр в PNG в папку `Screenshots` рядом с `RcCarsRe.exe` и возвращает имя файла. `hideScriptHud` (по умолчанию `true`) убирает из этого кадра элементы HUD скрипта. Делается только `scale = 1` (кадр как на экране) |
+
+- `rc.camera{...}` принимает и `roll = градусы` (положительно — по часовой стрелке) и работает, пока гонка на паузе.
+- Ввод читается, только когда окно игры на переднем плане и никто не печатает в текстовое поле (поле меню,
+  строка сетевого чата). Работает и только с клавиатурой, и только с геймпадом.
+- Недоступно (в рендерере нет дешёвого способа): глубина резкости, снимки `scale = 2`, экспозиция / насыщенность.
+  Для настроения — `rc.fog`, `rc.sun`, `rc.lights` и `rc.water`.
+- Безопасность: паузу, скрытый HUD, захват ввода, замедление и камеру игра снимает в конце гонки, при выходе из
+  гонки, при перезагрузке модов и когда скрипт падает с ошибками или выключается, так что сломанный скрипт никогда
+  не оставит игру остановленной или без HUD.
+
+### Как построить фоторежим
+
+Пример-мод `photo_mode` (в `docs/modding/examples/`) — полный фоторежим в одном скрипте. Его основа:
+
+```lua
+local on, pos, yaw, pitch = false, nil, 0, 0
+
+local function enter()
+  local c = rc.cameraInfo()
+  if not c or not rc.pause(true) then return end      -- нет камеры гонки или сетевая гонка
+  rc.hud(false)
+  rc.input.capture(true)
+  pos = {c.pos.x, c.pos.y, c.pos.z}
+  yaw, pitch = math.atan(c.dir.x, c.dir.z), math.asin(c.dir.y)
+  on = true
+end
+
+local function leave()
+  rc.camera(nil); rc.hud(true); rc.input.capture(false); rc.pause(false)
+  on = false
+end
+
+function onFrame(dt)
+  if rc.input.pressed("P") then if on then leave() else enter() end return end
+  if not on then return end
+  if rc.input.pressed("Esc") then leave() return end
+  local m = rc.input.mouse()
+  yaw, pitch = yaw + m.dx * 0.003, math.max(-1.5, math.min(1.5, pitch - m.dy * 0.003))
+  local fx, fy, fz = math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)
+  local go = (rc.input.key("W") and 1 or 0) - (rc.input.key("S") and 1 or 0)
+  pos = {pos[1] + fx * go * 6 * dt, pos[2] + fy * go * 6 * dt, pos[3] + fz * go * 6 * dt}
+  rc.camera{pos = pos, target = {pos[1] + fx, pos[2] + fy, pos[3] + fz}}
+  if rc.input.pressed("F12") then rc.screenshot{hideScriptHud = true}; rc.stats.add("photos") end
+  rc.hudText(400, 580, "F12 photo, P leave", 0xffffffff, 0.7, "center")
+end
+```
+
+Пример добавляет управление геймпадом (левый / правый стик, курки вверх / вниз, бамперы — крен, крестовина — угол
+обзора, A — снимок, кнопка Back / View / Share / Create — включение, настраивается), движение вбок, скорость, крен,
+угол обзора и свою страницу настроек.
+
 ## 6. Ограничения песочницы
 
 - Доступно: базовые функции Lua, `table`, `string`, `math`, `utf8`, `coroutine`, а также `os.clock`, `os.time`,
@@ -250,13 +317,14 @@ rc.options{
 
 ## 9. Примеры
 
-В `docs/modding/examples/` три готовых мода. Скопируйте папку в `mods\` рядом с `RcCarsRe.exe`:
+В `docs/modding/examples/` четыре готовых мода. Скопируйте папку в `mods\` рядом с `RcCarsRe.exe`:
 
 - `laptime_hud`: время гонки игрока 1 (то же, что таймер HUD), текущий, прошлый и лучший круг в рамке, в формате
   времени игры; параметры: лучший круг, размер, угол.
 - `checkpoint_sound`: на каждой контрольной точке игрока 1 играет собственный `sounds\ding.wav` мода и мигает её номер.
 - `drift_air`: когда машина игрока 1 приземляется после прыжка, показывает время в воздухе, даёт короткую вибрацию
   и вспышку световой панели и хранит через `rc.stats` лучшее время в воздухе по трассам и число прыжков.
+- `photo_mode`: фоторежим (P или кнопка Back / Share / Create геймпада): гонка на паузе, HUD скрыт, свободная камера, F12 / A — снимок, rc.stats считает их (API 1.2).
 
 Минимальный скрипт:
 

@@ -33,8 +33,8 @@ reconstructed C source, so the game can run on today's systems and be modified.
 - Screen-space ambient occlusion (SSAO), realtime point lights for lamps and lanterns
 - 1280 x 800 (Steam Deck) and any other resolution; menus and HUD scale with the window
 - Xbox, PlayStation 4 and DualSense controllers: rumble, DualSense adaptive triggers, a light bar that follows the
-  race's GPS arrow (yellow in the menus), shots felt through the DualSense haptics (experimental) and heard on the pad's
-  speaker over USB; the pad is reset when the game quits
+  race's GPS arrow (yellow in the menus), shots felt through the DualSense haptics;
+  the pad is reset when the game quits
 - Split screen for two players (keyboard and mouse or two pads), mouse camera
 - VR through OpenXR (SteamVR and others), Discord status in four languages
 

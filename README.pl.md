@@ -36,8 +36,8 @@ w czasie rzeczywistym.*
 - Okluzja otoczenia w przestrzeni ekranu (SSAO), punktowe światła w czasie rzeczywistym przy lampach i latarniach
 - 1280 x 800 (Steam Deck) i każda inna rozdzielczość; menu i HUD skalują się z oknem
 - Kontrolery Xbox, PlayStation 4 i DualSense: wibracje, adaptacyjne spusty DualSense, pasek świetlny podążający
-  za strzałką GPS w wyścigu (żółty w menu), strzały odczuwalne przez haptykę DualSense (eksperymentalnie) i słyszalne w głośniku
-  pada przez USB; przy wyjściu pad wraca do ustawień domyślnych
+  za strzałką GPS w wyścigu (żółty w menu), strzały odczuwalne przez haptykę DualSense;
+  przy wyjściu pad wraca do ustawień domyślnych
 - Podzielony ekran dla dwóch graczy (klawiatura i mysz albo dwa pady), kamera sterowana myszą
 - VR przez OpenXR (SteamVR i inne), status w Discordzie w czterech językach
 
