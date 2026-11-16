@@ -177,6 +177,7 @@ A modok újratöltése megszünteti a szkript fénysávját és ravaszhatásait.
 | Függvény | Jelentés |
 |---|---|
 | `rc.readFile(path)` | a fájl bájtjai szövegként, vagy `nil, üzenet`. Csak a szkript saját modja olvasható |
+| `rc.readUserFile(suffix)` | (1.2) a játékos saját fájlja, `Saves\Mods\<mod>.<suffix>` a `RcCarsRe.exe` mellett (például `"controls.ini"`: a mod frissítéseit túlélő beállítások), vagy `nil, üzenet`. Csak ez a mappa és a mod saját neve; `suffix`: betűk, számjegyek, `_ . -` |
 | `rc.include(path)` | a saját mod egy `.lua` fájlját egyszer lefuttatja és visszaadja az eredményét (a későbbi hívások ugyanazt adják), mint a `require` |
 
 ### Beállítások
@@ -285,9 +286,21 @@ function onFrame(dt)
 end
 ```
 
-A példa ehhez hozzáadja a kontroller-vezérlést (bal / jobb kar, ravaszok fel / le, vállgombok döntés, D-pad
-látószög, A a fotó, a Back / View / Share / Create gomb a ki-be kapcsolás - beállítható), az oldalazást, a
-sebességet, a döntést, a látószöget és a saját beállítóoldalát.
+A teljes példa szabadon repül: W / S a nézés irányában (fel-le is), A / D oldalra (vízszintesen, a döntés nem
+fordítja el), Shift / Ctrl egyenesen fel / le, Q / E döntés, Space gyorsabb, az egér néz, a görgő zoomol, F12 a
+fotó, P / Esc kilép; kontrolleren a karok, a ravaszok (le / fel), a vállgombok (döntés), a D-pad (zoom), az A (fotó)
+és a Back / View / Share / Create (ki-be). Bemenet nélkül a kamera áll: a karok és a ravaszok holtsávon mennek át
+(0,2 / 0,1), tehetetlenség nincs.
+
+A gombkiosztása a mod egy sima szövegfájljában van, `photo_mode\controls.ini`, soronként egy `művelet=gomb`,
+megjegyzéssel (`[Keyboard]` és `[Pad]` szakasz, a holtsávok `deadzone=` / `triggerDeadzone=`). A szkript az
+`rc.readFile`-lal olvassa betöltéskor (így az Alkalmaznál és a -dev gyors újratöltésnél is: egy mappás mod
+megváltozott `.ini` / `.txt` fájlja újratölti a szkriptjeit), és minden bekapcsoláskor; ismeretlen név sárga
+figyelmeztetést ad, és az adott műveletnél az alapérték marad. Gombnevek: `A` .. `Z`, `0` .. `9`, `F1` .. `F12`,
+`Ctrl`, `Shift`, `Alt`, `Space`, `Tab`, `Enter`, `Esc`, `Up`, `Down`, `Left`, `Right`, `MouseLeft`, `MouseRight`,
+`MouseMiddle`, `WheelUp`, `WheelDown`, `None`; a kontroller nevei az `rc.input.pad` szerint. A játékos saját
+példánya a `RcCarsRe.exe` melletti `Saves\Mods\photo_mode.controls.ini` fájlban (az
+`rc.readUserFile("controls.ini")` olvassa) erősebb nála, és túléli a mod frissítéseit.
 
 ## 6. A homokozó korlátai
 

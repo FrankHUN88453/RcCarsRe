@@ -172,6 +172,7 @@ Przeładowanie modów kończy pasek świetlny i efekty spustów skryptu.
 | Funkcja | Znaczenie |
 |---|---|
 | `rc.readFile(path)` | bajty pliku jako ciąg albo `nil, komunikat`. Odczytywany jest tylko własny mod skryptu |
+| `rc.readUserFile(suffix)` | (1.2) własny plik gracza `Saves\Mods\<mod>.<suffix>` obok `RcCarsRe.exe` (np. `"controls.ini"`: ustawienia, które przetrwają aktualizacje moda) albo `nil, komunikat`. Tylko ten folder i nazwa samego moda; `suffix`: litery, cyfry, `_ . -` |
 | `rc.include(path)` | uruchamia raz plik `.lua` własnego moda i zwraca jego wynik (kolejne wywołania zwracają ten sam wynik), jak `require` |
 
 ### Ustawienia
@@ -281,9 +282,21 @@ function onFrame(dt)
 end
 ```
 
-Przykład dodaje sterowanie padem (lewa / prawa gałka, spusty w górę / w dół, bumpery przechył, krzyżak pole
-widzenia, A zdjęcie, przycisk Back / View / Share / Create włącza - do ustawienia), ruch w bok, prędkość, przechył,
-pole widzenia i własną stronę ustawień.
+Pełny przykład lata swobodnie: W / S wzdłuż spojrzenia (także w górę i w dół), A / D w bok (poziomo, przechył go nie
+obraca), Shift / Ctrl prosto w górę / w dół, Q / E przechył, Space szybciej, mysz rozgląda się, kółko przybliża, F12
+robi zdjęcie, P / Esc wychodzi; na padzie gałki, spusty (w dół / w górę), bumpery (przechył), krzyżak (zoom), A
+(zdjęcie) i Back / View / Share / Create (wł. / wył.). Bez wejścia kamera stoi: gałki i spusty przechodzą przez
+martwe strefy (0,2 / 0,1), nie ma bezwładności.
+
+Jego przypisania są w zwykłym pliku tekstowym moda, `photo_mode\controls.ini`, po jednym `akcja=klawisz` w wierszu z
+komentarzem (sekcje `[Keyboard]` i `[Pad]`, martwe strefy jako `deadzone=` / `triggerDeadzone=`). Skrypt czyta go
+przez `rc.readFile` przy ładowaniu (więc także po Zastosuj i przy szybkim przeładowaniu -dev: zmieniony `.ini` /
+`.txt` moda-folderu przeładowuje jego skrypty) i przy każdym włączeniu trybu; nieznana nazwa daje żółte ostrzeżenie,
+a dla tej akcji zostaje wartość domyślna. Nazwy klawiszy: `A` .. `Z`, `0` .. `9`, `F1` .. `F12`, `Ctrl`, `Shift`,
+`Alt`, `Space`, `Tab`, `Enter`, `Esc`, `Up`, `Down`, `Left`, `Right`, `MouseLeft`, `MouseRight`, `MouseMiddle`,
+`WheelUp`, `WheelDown`, `None`; nazwy przycisków pada jak w `rc.input.pad`. Własna kopia gracza w
+`Saves\Mods\photo_mode.controls.ini` obok `RcCarsRe.exe` (czytana przez `rc.readUserFile("controls.ini")`) ma
+pierwszeństwo i przetrwa aktualizacje moda.
 
 ## 6. Ograniczenia piaskownicy
 

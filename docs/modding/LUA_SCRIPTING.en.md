@@ -172,6 +172,7 @@ A mod reload ends the script light bar and the trigger effects.
 | Function | Meaning |
 |---|---|
 | `rc.readFile(path)` | the file's bytes as a string, or `nil, message`. Only the script's own mod is read |
+| `rc.readUserFile(suffix)` | (1.2) the player's own file `Saves\Mods\<mod>.<suffix>` next to `RcCarsRe.exe` (for example `"controls.ini"`: settings that survive mod updates), or `nil, message`. Only that folder and the mod's own name; `suffix`: letters, digits, `_ . -` |
 | `rc.include(path)` | runs a `.lua` file of the own mod once and returns its result (later calls return the same result), like `require` |
 
 ### Settings
@@ -279,9 +280,20 @@ function onFrame(dt)
 end
 ```
 
-The example adds pad controls (left / right stick, triggers up / down, bumpers roll, D-pad FOV, A for a photo, the
-Back / View / Share / Create button to toggle - configurable), strafing, speed, roll, field of view and its own
-settings page.
+The full example flies freely: W / S along the view (up and down too), A / D sideways (level, roll does not turn
+it), Shift / Ctrl straight up / down, Q / E roll, Space faster, the mouse looks, the wheel zooms, F12 takes a photo,
+P / Esc leaves; on a pad the sticks, the triggers (down / up), the bumpers (roll), the D-pad (zoom), A (photo) and
+Back / View / Share / Create (on / off). Without input the camera stands still: the sticks and triggers go through
+dead zones (0.2 / 0.1) and there is no inertia.
+
+Its bindings are in a plain text file of the mod, `photo_mode\controls.ini`, one `action=key` per line with a
+comment (`[Keyboard]` and `[Pad]` sections, the dead zones as `deadzone=` / `triggerDeadzone=`). The script reads it
+with `rc.readFile` when it loads (so on Apply and on the -dev hot reload too: a changed `.ini` / `.txt` of a folder
+mod reloads its scripts) and each time the photo mode is switched on; an unknown name gives a yellow warning and the
+default stays for that action. Key names: `A` .. `Z`, `0` .. `9`, `F1` .. `F12`, `Ctrl`, `Shift`, `Alt`, `Space`,
+`Tab`, `Enter`, `Esc`, `Up`, `Down`, `Left`, `Right`, `MouseLeft`, `MouseRight`, `MouseMiddle`, `WheelUp`,
+`WheelDown`, `None`; pad names as in `rc.input.pad`. A player's own copy in `Saves\Mods\photo_mode.controls.ini`
+next to `RcCarsRe.exe` (read with `rc.readUserFile("controls.ini")`) wins over it and survives mod updates.
 
 ## 6. Sandbox limits
 
