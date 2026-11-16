@@ -222,7 +222,7 @@ function onFrame(dt)
   local speed = rc.setting("speed", 6)
   if held("fast") or padHeld(p, "fast") then speed = speed * 4 end
   local fx, fy, fz = math.sin(yaw) * math.cos(pitch), math.sin(pitch), math.cos(yaw) * math.cos(pitch)
-  local sx, sz = math.cos(yaw), -math.sin(yaw)        -- to the right, horizontal (roll does not turn it)
+  local sx, sz = -math.cos(yaw), math.sin(yaw)        -- to the right, horizontal (roll does not turn it; the game's x axis points left of the view)
   local mf, ms, mu = 0, 0, 0
   if held("forward") then mf = mf + 1 end
   if held("back") then mf = mf - 1 end
