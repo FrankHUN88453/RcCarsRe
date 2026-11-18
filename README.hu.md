@@ -64,6 +64,9 @@ napló); a versenyt és a játék fájljait nem változtathatják meg. Dokument�
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 A Lua 5.4 az MIT-licenc alapján szerepel ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
+**RC Cars és Smash Cars (PS2).** Miben tér el a PC-s játék és a PlayStation 2-es változata (autók, fizika, hajtóművek, légi trükkök, hangok, pályák); mindez akkor derült ki, amikor a PS2-es autók és az oktatópálya modként átkerültek az újraépített játékba:
+[English](docs/PS2_DIFFERENCES.md) | [Magyar](docs/PS2_DIFFERENCES.hu.md) | [Русский](docs/PS2_DIFFERENCES.ru.md) | [Polski](docs/PS2_DIFFERENCES.pl.md).
+
 ## Állapot
 
 A munka folyamatban van. A gyors verseny és a bajnokság elejétől a végéig lejátszható, a hálózati verseny működik

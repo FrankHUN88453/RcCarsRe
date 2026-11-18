@@ -67,6 +67,9 @@ RcCarsRe — фанатский проект, в котором исполняе
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 используется по лицензии MIT ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
+**RC Cars и Smash Cars (PS2).** Чем отличаются игра для PC и её версия для PlayStation 2 (машины, физика, реактивные двигатели, трюки в воздухе, звуки, уровни); это выяснилось, когда машины PS2 и уровень обучения переносились в воссозданную игру как моды:
+[English](docs/PS2_DIFFERENCES.md) | [Magyar](docs/PS2_DIFFERENCES.hu.md) | [Русский](docs/PS2_DIFFERENCES.ru.md) | [Polski](docs/PS2_DIFFERENCES.pl.md).
+
 ## Состояние
 
 Работа продолжается. Быструю гонку и чемпионат можно пройти от начала до конца, сетевая гонка работает по LAN, по

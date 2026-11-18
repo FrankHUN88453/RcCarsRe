@@ -66,6 +66,9 @@ zdjęć oraz **Zombie** — cały nowy tryb gry zbudowany tylko z API: nowe tryb
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 jest używane na licencji MIT ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
+**RC Cars i Smash Cars (PS2).** Czym różni się gra na PC od wersji na PlayStation 2 (samochody, fizyka, silniki odrzutowe, triki w powietrzu, dźwięki, poziomy); ustalono to przy przenoszeniu samochodów PS2 i poziomu samouczka do odtworzonej gry jako modów:
+[English](docs/PS2_DIFFERENCES.md) | [Magyar](docs/PS2_DIFFERENCES.hu.md) | [Русский](docs/PS2_DIFFERENCES.ru.md) | [Polski](docs/PS2_DIFFERENCES.pl.md).
+
 ## Stan prac
 
 Prace trwają. Szybki wyścig i mistrzostwa można rozegrać od początku do końca, wyścig sieciowy działa w sieci

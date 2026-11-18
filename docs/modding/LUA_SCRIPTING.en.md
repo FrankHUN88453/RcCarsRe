@@ -10,7 +10,7 @@ Scripts cannot change the race, the cars or the game's files, with one exception
 (chapter 6, API 1.4) runs the rules of its own races (single player, and since API 1.5 network races too).
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.5**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.10**.
 
 ## 1. Overview
 
@@ -71,6 +71,7 @@ Define these as global functions. All are optional.
 | `onHit(car, strength)` | the game awarded a hit: 1 = "Hit!", 2 = "Great hit!" |
 | `onWater(car)` | a car came into the water |
 | `onRespawn(car)` | a car was put back on the track |
+| `onObjectHit(car, name)` | (1.9) a car knocked a loose object of the level (a can, a ball, a bottle ...); `name` is the object's name in the level. Once per knock |
 | `onRaceEnd(results)` | once per race, when the finish script starts (all players finished) |
 | `onOptionChanged(key, value)` | an option was changed on the mod's Settings page |
 | `onBoost(car, on)` | (1.1) a car's booster started (`true`) or stopped (`false`) firing |
@@ -93,10 +94,10 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.5"`) |
+| `rc.version` | the API version string (`"1.10"`) |
 | `rc.modName` | the mod's name |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes) |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes); (1.8) `airTime` = seconds since a wheel of the car last touched the ground (0 on the ground) and `vy` = its vertical speed in m/s (negative while it falls); both are 0 for the opponents; (1.9) `dir` and `up` = the car's forward and up axes as `{x, y, z}`, `spin` = its angular velocity in rad/s about the world's axes (0 for the opponents) |
 | `rc.player(n)` | the car table of player `n` (1 or 2, default 1), or `nil` |
 | `rc.screen()` | `{w, h, menu, vr, split}`: render size in pixels, the current screen name, VR on, split screen |
 | `rc.formatTime(seconds, format)` | (1.1) a time as the game writes it: `"m:ss.hh"` like the HUD's timer (`0:15.89`), or with `format = "short"` `"m:ss"` |
@@ -477,6 +478,87 @@ place of the level's), `thunder01.wav` (a new zombie, heard over the whole track
 `zombie_attack*.wav` (the infecting contact, at both cars), `heart_beat.wav` (your heartbeat from the nearest
 zombie's direction, faster as it comes nearer), `zombie_outro.mp3` (the zombies win), `humans_win.wav` (the
 survivors win).
+
+## 6a. Added cars, bodies and skins (1.6)
+
+A mod can add cars, bodies and paints without replacing the game's own. Call these when the script loads:
+
+```lua
+-- a car with a chassis of its own (it drives as its base car unless it gives physics values)
+rc.registerCar{
+  id = "mycar", name = {en = "My car", hu = "Az autóm"},
+  base = "Buggy",                   -- "Overkill", "Buggy" or "Warhammer" (or 1 .. 3)
+  file = "RCCarsDB/mycar.sb",       -- a scene database of the mod
+  model = "MyCar",                  -- its models: MyCar, MyCarLOD1, MyCarLOD2, MyCarLOD3
+  skin = "mycar_sk", paints = 3,    -- the paints: textures mycar_sk1 .. mycar_sk3
+  physics = {springLength = 0.17, wheelRad = {0.063, 0.063, 0.063, 0.063}},   -- optional: its own values
+  physicsScale = {speedBaseMax = 0.93, tyresFront = 0.77, tyresRear = 0.77}, -- optional: factors on the base car's
+}
+-- one more body for a car (the game's or an added one): the same chassis and physics
+rc.registerBody{id = "mybody", name = "My body", car = "Buggy",
+                file = "RCCarsDB/mybody.sb", model = "MyBody", skin = "mybody_sk", paints = 2}
+-- one more paint for a car's own body, or (body = "mybody") for an added body
+rc.registerSkin{car = "Buggy", name = "Blue", texture = "myskin_a", texture2 = "myskin_b"}
+```
+
+- **`rc.registerCar`**: a car with its own chassis. It uses its `base` car's place in the player's profile (it can
+  be raced when the player owns the base car), sounds and upgrades; nothing new is saved. Without `physics` /
+  `physicsScale` it drives exactly like the base car.
+- **`rc.registerBody`**: another body on an existing chassis: `car` is one of the game's cars or an added car's
+  `id`. It drives like that car.
+- **`rc.registerSkin`**: one more paint. `car` alone: for that car's own body; `body`: for an added body.
+  `texture2` is the second (B) texture of the game's Buggy and Warhammer, whose bodies use two.
+- The Quick race's car chooser lists the game's cars, each followed by its added bodies, then the added cars with
+  theirs. The **Skin** row under the preview picks the paint ("-" = the paint of the player's profile). The choices
+  are not saved. The network game, the split screen, the garage and the championship use the game's cars.
+- `file` is a scene database (`.sb`) in the mod with the models `<model>`, `<model>LOD1` .. `<model>LOD3`: the
+  whole car (chassis and body), for a body too. The model objects follow the base car's (`WHEEL_FRONT_LEFT`, the
+  axles, the `booster_N` / `compressor_N` upgrade parts ...): the game takes the wheels' places from the model.
+- Give the model's textures names of the mod's own, so no texture of another car is replaced. `skin` is the
+  beginning of the paints' texture names; the model must list all of them (`<skin>1` .. `<skin><paints>`).
+- `physics` sets values in the game's own units, `physicsScale` multiplies the base car's. Names: `speedBaseMax`, `speedBoostMax` (km/h), `boostSpeedUp`, `boostSpeedDown`, `boosters`, `resonators`, `resonatorsForce`, `tyreUpgrades` (4 each), `tyresFront`, `tyresRear`, `angleDriftOn`, `speedDriftOn`, `coeffDriftRear`, `coeffDeepSand`, `coeffWater`, `speedAngMaxRel`, `frictionBearings`, `airResistance`, `angleSteer`, `springLength`, `springLenMin`, `springLenMax`, `springKPos`, `springKSpeed`, `springDx`, `springTouchPoint`, `springDz`, `coeffMomentOX`, `coeffMomentOZ`, `lenAxe`, `angleUpMax`, `angleDownMax`, `wheelRad` (6), `bodyRad` (4), `bodyPos` (4 x {x, y, z}), `centreMass`.
+- Jet drive (for a car with jets, like the PS2 game's CCCP): giving `jetForceForward` in `physics` turns it on for that car. It follows the PS2 game's code and works **only in the air** (no wheel touching); on the ground the car drives by its wheels like any other. In the air: the car flies where it points (its sideways drift is taken away within `jetSideDecayTime`), the accelerator pushes it along its level heading with `jetForceForward` (reverse with half of it), steering pushes with `jetForceRotate` at the jet `jetLeverLen` to the side until the turning momentum reaches `jetMaxYawImpulse`, and the car is turned level (heading kept) at up to 160 degrees a second, so it lands on its wheels. The forces are not multiplied by the car's mass. Accepted but not used (the PS2 code read does not use them either): `jetStabYawSpeed`, `jetStabRollSpeed`, `jetStabRollAngle`, `jetRotateMinSpeed`, `jetCoeffSand`, `jetCoeffGrass`; `jetPitchDecayTime` is the old name of `jetSideDecayTime`. `jetGravitySpeed = {..}` with `jetGravity = {..}` (up to six points, speeds in km/h rising) make the car's gravity depend on its speed, as the PS2 car's does (the game's gravity is 10); the car then also jumps higher and further.
+- Sounds (1.7), for `rc.registerCar` and `rc.registerBody`: `sound = "Overkill" | "Buggy" | "Warhammer"` (or 1 .. 3) picks which game car's engine sound set the car uses (default: its base car's); `sounds = {motor_accel1 = "mycar_accel", ...}` plays single sounds from the mod's own files: the key is the game's sound name (the Overkill's names work for every set: `motor_accel1`, `motor_engine`, `motor_idle`, `motor_off`, `motor_reverse`, `motor_decel1` .. `3`, `motor_accel1_ws`, `motor_engine_ws`, `motor_decel1_ws`, `Motor_flying2`, `Motor_flying_end2`, `car_boost`, `car_boost_end`, `car_flying`, `car_landing`, `car_break`, `car_cdt_*`, `car_surf_*`, `car_hit_*`), the value a file name without extension in the mod's `Sound` folder (`Sound/mycar_accel.wav`). A file that is missing is logged and the game's own sound is played. A body without sound settings sounds as its car. Only the player's car uses them (the opponents share the game's AI sounds). The engine has no pitch change: the game enters `motor_accel1` at 0 / 1.38 / 3.35 / 6.81 s by the speed band, so a replacement should rise in the same way.
+- Each call returns `true`; a car / body of the same `id` is replaced. At most 16 cars, 48 bodies, 96 skins.
+
+## 6b. Main menu entries, starting a race, object hits (1.9)
+
+```lua
+rc.registerMenu{id = "tutorial", name = {en = "Tutorial", hu = "Oktató"}, onSelect = function()
+  rc.startRace{track = "beach_1", car = "Buggy", laps = 3, mode = "my_mode"}
+end}
+
+function onObjectHit(car, name)            -- a car knocked a can, a ball, a bottle ...
+  rc.log(rc.carName(car) .. " hit " .. name)
+end
+```
+
+| Function | Description |
+|---|---|
+| `rc.registerMenu{id =, name =, onSelect =}` | adds a button to the main menu, between Mods and Credits. `name` is a text or a language table; `onSelect` runs when the button is pressed. The menu has room for two such buttons in all (over every mod); a third is left out with a warning and the call returns `false`. With an entry the menu's buttons move a little closer together |
+| `rc.startRace{track =, car =, laps =, mode =}` | starts a Quick race from the menus. `track`: one of the game's ten (`"beach_1"` .. `"country_4"`, the display name, or 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, or the id of an added car or body (default: the player's car); `laps`: the lap count; `mode`: the id of a game mode registered with `rc.registerMode` (default: a plain race). Returns `true` when the start is queued (it happens within a second), or `false` and a reason (a race is running, a network game, no player chosen) |
+| `rc.addSpin(car, x, y, z)` | changes the car's angular velocity by that much (rad/s about the world's axes), e.g. to let the player turn the car in the air. Only a car with its own physics (the players'), not in a network race; returns `true` when done |
+
+### Added tracks (1.10)
+
+```lua
+rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"},
+  description = {en = "Learn to drive.", hu = "Tanulj meg vezetni."},
+  level = "tutorial",                    -- RCCarsDB/tutorial.sb of the mod
+  picture = "tutorial_pic",              -- the selection picture on the Quick race page
+  loading = "tutorial_load",             -- the loading screen's big picture
+  shots = {"tutorial_s1", "tutorial_s2"},  -- up to four more small pictures of the loading screen
+  ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
+```
+
+`rc.registerTrack` adds a track of the mod to the Quick race page, after the game's ten (at most 8 added tracks in all). Everything it names is in the game's own formats, in the mod's folders:
+
+- `level`: the level database `RCCarsDB/<level>.sb`, built like the game's levels (its `Checkpoints` folder with the marks `cp_1` .. `cp_8`, the `Player` instance, and so on).
+- `picture`: the texture shown when the track is chosen (in the mod's `Textures`). `loading`: the loading screen's big picture; `shots`: up to four more small pictures of the loading screen. What is left out is the `picture`; without `picture` the first game track's pictures are used.
+- `ai`: an AI layout script in the mod's `Scripts` folder, written like the game's `Scripts/AIlayouts.ini`: the `AIPlayer<n>` sections and one section `AIRace1` with `PlayerPath`, `AI<n>Path` (recorded car profiles in `CarProfiles/`), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` and so on. Without `ai` the track has no opponents and the player starts at the level's `Player` instance.
+- `name`, `description`: a text or a language table.
+
+`rc.startRace{track = "<id>"}` starts an added track by its id. Added tracks are not in the Championship, the Ghost race or the multiplayer pages, and no records or statistics are kept for them.
 
 ## 7. Sandbox limits
 

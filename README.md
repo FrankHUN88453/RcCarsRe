@@ -63,6 +63,9 @@ files. Documentation with the full API and example mods (events, camera, fog, su
 [Русский](docs/modding/LUA_SCRIPTING.ru.md) | [Polski](docs/modding/LUA_SCRIPTING.pl.md).
 Lua 5.4 is used under the MIT licence ([LUA_LICENSE.txt](docs/modding/LUA_LICENSE.txt)).
 
+**RC Cars and Smash Cars (PS2).** What differs between the PC game and its PlayStation 2 version (cars, physics, jets, air tricks, sounds, levels), found while the PS2 cars and the tutorial level were brought into the rebuilt game as mods:
+[English](docs/PS2_DIFFERENCES.md) | [Magyar](docs/PS2_DIFFERENCES.hu.md) | [Русский](docs/PS2_DIFFERENCES.ru.md) | [Polski](docs/PS2_DIFFERENCES.pl.md).
+
 ## Status
 
 Work in progress. Quick races and the championship can be played from start to finish, and network races work over

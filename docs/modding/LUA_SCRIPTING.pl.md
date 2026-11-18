@@ -10,7 +10,7 @@ oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać 
 wyjątkiem: skrypt trybu gry (rozdział 6, API 1.4) prowadzi zasady własnych wyścigów (na razie w grze jednoosobowej).
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.5**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.10**.
 
 ## 1. Przegląd
 
@@ -70,6 +70,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 | `onHit(car, strength)` | gra przyznała uderzenie: 1 = „Hit!”, 2 = „Great hit!” |
 | `onWater(car)` | samochód wjechał do wody |
 | `onRespawn(car)` | samochód został odstawiony na trasę |
+| `onObjectHit(car, name)` | (1.9) samochód potrącił luźny przedmiot poziomu (puszkę, piłkę, butelkę ...); `name` to nazwa przedmiotu na poziomie. Raz na potrącenie |
 | `onRaceEnd(results)` | raz na wyścig, gdy startuje skrypt mety (wszyscy gracze dojechali) |
 | `onOptionChanged(key, value)` | na stronie Ustawienia moda zmieniono opcję |
 | `onBoost(car, on)` | (1.1) dopalacz samochodu zaczął (`true`) lub przestał (`false`) działać |
@@ -92,10 +93,10 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.5"`) |
+| `rc.version` | wersja API (`"1.10"`) |
 | `rc.modName` | nazwa moda |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie) |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie); (1.8) `airTime` = sekundy od chwili, gdy koło samochodu ostatnio dotykało ziemi (na ziemi 0), `vy` = prędkość pionowa w m/s (ujemna podczas spadania); u przeciwników oba wynoszą 0; (1.9) `dir` i `up` = osie samochodu do przodu i w górę jako `{x, y, z}`, `spin` = jego prędkość kątowa w rad/s wokół osi świata (u przeciwników 0) |
 | `rc.player(n)` | tabela samochodu gracza `n` (1 lub 2, domyślnie 1) lub `nil` |
 | `rc.screen()` | `{w, h, menu, vr, split}`: rozmiar obrazu w pikselach, nazwa bieżącego ekranu, VR włączony, podzielony ekran |
 | `rc.formatTime(seconds, format)` | (1.1) czas zapisany tak jak w grze: `"m:ss.hh"` jak zegar HUD (`0:15.89`), albo z `format = "short"` `"m:ss"` |
@@ -476,6 +477,89 @@ moda (każdy brakujący jest pomijany z ostrzeżeniem): `zombie_ambient.mp3` (t�
 `thunder01.wav` (nowe zombie, słychać je na całej trasie z miejsca zdarzenia), `zombie_attack*.wav` (zarażające
 zderzenie, przy obu samochodach), `heart_beat.wav` (twoje bicie serca od strony najbliższego zombie, szybsze, gdy się
 zbliża), `zombie_outro.mp3` (wygrana zombie), `humans_win.wav` (wygrana ocalałych).
+
+## 6a. Dodane samochody, nadwozia i malowania (1.6)
+
+Mod może dodać samochody, nadwozia i malowania bez zastępowania tych z gry. Wywołaj przy ładowaniu skryptu:
+
+```lua
+-- a car with a chassis of its own (it drives as its base car unless it gives physics values)
+rc.registerCar{
+  id = "mycar", name = {en = "My car", hu = "Az autóm"},
+  base = "Buggy",                   -- "Overkill", "Buggy" or "Warhammer" (or 1 .. 3)
+  file = "RCCarsDB/mycar.sb",       -- a scene database of the mod
+  model = "MyCar",                  -- its models: MyCar, MyCarLOD1, MyCarLOD2, MyCarLOD3
+  skin = "mycar_sk", paints = 3,    -- the paints: textures mycar_sk1 .. mycar_sk3
+  physics = {springLength = 0.17, wheelRad = {0.063, 0.063, 0.063, 0.063}},   -- optional: its own values
+  physicsScale = {speedBaseMax = 0.93, tyresFront = 0.77, tyresRear = 0.77}, -- optional: factors on the base car's
+}
+-- one more body for a car (the game's or an added one): the same chassis and physics
+rc.registerBody{id = "mybody", name = "My body", car = "Buggy",
+                file = "RCCarsDB/mybody.sb", model = "MyBody", skin = "mybody_sk", paints = 2}
+-- one more paint for a car's own body, or (body = "mybody") for an added body
+rc.registerSkin{car = "Buggy", name = "Blue", texture = "myskin_a", texture2 = "myskin_b"}
+```
+
+- **`rc.registerCar`**: samochód z własnym podwoziem. Używa miejsca samochodu `base` w profilu gracza (można nim
+  jechać, gdy gracz ma samochód bazowy), jego dźwięku i ulepszeń; nic nowego nie jest zapisywane. Bez `physics` /
+  `physicsScale` jeździ dokładnie jak samochód bazowy.
+- **`rc.registerBody`**: inne nadwozie na istniejącym podwoziu: `car` to jeden z samochodów gry albo `id` dodanego
+  samochodu. Jeździ jak ten samochód.
+- **`rc.registerSkin`**: jeszcze jedno malowanie. Samo `car`: dla własnego nadwozia samochodu; `body`: dla dodanego
+  nadwozia. `texture2` to druga (B) tekstura Buggy i Warhammera z gry, których nadwozia mają dwie.
+- Wybór samochodu w Szybkim wyścigu pokazuje samochody gry, każdy z dodanymi do niego nadwoziami, potem dodane
+  samochody z ich nadwoziami. Wiersz **Skin** pod podglądem wybiera malowanie („-" = malowanie z profilu gracza).
+  Wybory nie są zapisywane. Gra sieciowa, podzielony ekran, garaż i mistrzostwa używają samochodów gry.
+- `file` to baza sceny (`.sb`) w modzie z modelami `<model>`, `<model>LOD1` .. `<model>LOD3`: cały samochód
+  (podwozie i nadwozie), także dla nadwozia. Obiekty modelu odpowiadają obiektom samochodu bazowego
+  (`WHEEL_FRONT_LEFT`, osie, części ulepszeń `booster_N` / `compressor_N` ...): gra bierze miejsca kół z modelu.
+- Nadaj teksturom modelu własne nazwy moda, aby nie zastąpić tekstury innego samochodu. `skin` to początek nazw
+  tekstur malowań; model musi wymieniać je wszystkie (`<skin>1` .. `<skin><paints>`).
+- `physics` ustawia wartości w jednostkach gry, `physicsScale` mnoży wartości samochodu bazowego. Nazwy:
+  `speedBaseMax`, `speedBoostMax` (km/h), `boostSpeedUp`, `boostSpeedDown`, `boosters`, `resonators`, `resonatorsForce`, `tyreUpgrades` (4 each), `tyresFront`, `tyresRear`, `angleDriftOn`, `speedDriftOn`, `coeffDriftRear`, `coeffDeepSand`, `coeffWater`, `speedAngMaxRel`, `frictionBearings`, `airResistance`, `angleSteer`, `springLength`, `springLenMin`, `springLenMax`, `springKPos`, `springKSpeed`, `springDx`, `springTouchPoint`, `springDz`, `coeffMomentOX`, `coeffMomentOZ`, `lenAxe`, `angleUpMax`, `angleDownMax`, `wheelRad` (6), `bodyRad` (4), `bodyPos` (4 x {x, y, z}), `centreMass`.
+- Napęd odrzutowy (dla samochodu z silnikami odrzutowymi, jak CCCP z gry na PS2): podanie `jetForceForward` w `physics` włącza go dla tego samochodu. Działa według kodu gry z PS2 i **tylko w powietrzu** (gdy żadne koło nie dotyka ziemi); na ziemi samochód jedzie na kołach jak każdy inny. W powietrzu: samochód leci tam, gdzie jest skierowany (boczny znos zanika w czasie `jetSideDecayTime`), gaz pcha go wzdłuż poziomego kursu siłą `jetForceForward` (wsteczny połową), skręt pcha siłą `jetForceRotate` przy bocznym silniku (w odległości `jetLeverLen`), aż moment pędu skrętu osiągnie `jetMaxYawImpulse`, a samochód jest obracany do poziomu (kurs zostaje) z prędkością do 160 stopni na sekundę, więc ląduje na kołach. Siły nie są mnożone przez masę samochodu. Przyjmowane, ale nieużywane (odczytany kod PS2 też ich nie używa): `jetStabYawSpeed`, `jetStabRollSpeed`, `jetStabRollAngle`, `jetRotateMinSpeed`, `jetCoeffSand`, `jetCoeffGrass`; `jetPitchDecayTime` to stara nazwa `jetSideDecayTime`. `jetGravitySpeed = {..}` razem z `jetGravity = {..}` (do sześciu punktów, rosnące prędkości w km/h) uzależniają grawitację samochodu od prędkości, jak w samochodzie z PS2 (grawitacja gry to 10); samochód skacze wtedy wyżej i dalej.
+- Dźwięki (1.7), dla `rc.registerCar` i `rc.registerBody`: `sound = "Overkill" | "Buggy" | "Warhammer"` (lub 1 .. 3) wybiera, zestawu dźwięków silnika którego samochodu gry używa samochód (domyślnie: bazowego); `sounds = {motor_accel1 = "mycar_accel", ...}` odtwarza pojedyncze dźwięki z plików moda: klucz to nazwa dźwięku gry (nazwy Overkilla działają dla każdego zestawu: `motor_accel1`, `motor_engine`, `motor_idle`, `motor_off`, `motor_reverse`, `motor_decel1` .. `3`, `motor_accel1_ws`, `motor_engine_ws`, `motor_decel1_ws`, `Motor_flying2`, `Motor_flying_end2`, `car_boost`, `car_boost_end`, `car_flying`, `car_landing`, `car_break`, `car_cdt_*`, `car_surf_*`, `car_hit_*`), wartość to nazwa pliku bez rozszerzenia w folderze `Sound` moda (`Sound/mycar_accel.wav`). Brakujący plik trafia do dziennika i gra własny dźwięk gry. Karoseria bez ustawień dźwięku brzmi jak jej samochód. Używa ich tylko samochód gracza (przeciwnicy dzielą wspólne dźwięki AI). Silnik nie zmienia wysokości tonu: gra wchodzi w nagranie `motor_accel1` w 0 / 1,38 / 3,35 / 6,81 s według zakresu prędkości, więc zamiennik powinien narastać tak samo.
+- Każde wywołanie zwraca `true`; samochód / nadwozie o tym samym `id` jest zastępowane. Najwyżej 16 samochodów,
+  48 nadwozi, 96 malowań.
+
+## 6b. Pozycje menu głównego, start wyścigu, potrącone przedmioty (1.9)
+
+```lua
+rc.registerMenu{id = "tutorial", name = {en = "Tutorial", hu = "Oktató"}, onSelect = function()
+  rc.startRace{track = "beach_1", car = "Buggy", laps = 3, mode = "my_mode"}
+end}
+
+function onObjectHit(car, name)            -- a car knocked a can, a ball, a bottle ...
+  rc.log(rc.carName(car) .. " hit " .. name)
+end
+```
+
+| Funkcja | Opis |
+|---|---|
+| `rc.registerMenu{id =, name =, onSelect =}` | dodaje przycisk do menu głównego, między Mods a Credits. `name` to tekst lub tabela językowa; `onSelect` uruchamia się po naciśnięciu przycisku. W menu jest miejsce łącznie na dwa takie przyciski (dla wszystkich modów); trzeci jest pomijany z ostrzeżeniem, a wywołanie zwraca `false`. Gdy jest pozycja, przyciski menu są nieco bliżej siebie |
+| `rc.startRace{track =, car =, laps =, mode =}` | uruchamia Szybki wyścig z menu. `track`: jedna z dziesięciu tras gry (`"beach_1"` .. `"country_4"`, wyświetlana nazwa lub 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"` albo identyfikator dodanego samochodu lub karoserii (domyślnie: samochód gracza); `laps`: liczba okrążeń; `mode`: identyfikator trybu zarejestrowanego przez `rc.registerMode` (domyślnie: zwykły wyścig). Zwraca `true`, gdy start trafił do kolejki (następuje w ciągu sekundy), w przeciwnym razie `false` i powód (trwa wyścig, gra sieciowa, nie wybrano gracza) |
+| `rc.addSpin(car, x, y, z)` | zmienia prędkość kątową samochodu o tę wartość (rad/s wokół osi świata), np. żeby gracz mógł obracać samochód w powietrzu. Tylko dla samochodu z własną fizyką (samochody graczy), nie w wyścigu sieciowym; zwraca `true`, gdy wykonano |
+
+### Dodane trasy (1.10)
+
+```lua
+rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"},
+  description = {en = "Learn to drive.", hu = "Tanulj meg vezetni."},
+  level = "tutorial",                    -- RCCarsDB/tutorial.sb of the mod
+  picture = "tutorial_pic",              -- the selection picture on the Quick race page
+  loading = "tutorial_load",             -- the loading screen's big picture
+  shots = {"tutorial_s1", "tutorial_s2"},  -- up to four more small pictures of the loading screen
+  ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
+```
+
+`rc.registerTrack` dodaje trasę moda do strony Szybkiego wyścigu, po dziesięciu trasach gry (łącznie najwyżej 8 dodanych tras). Wszystko, co wskazuje, jest w formatach samej gry, w folderach moda:
+
+- `level`: baza poziomu `RCCarsDB/<level>.sb`, zbudowana jak poziomy gry (folder `Checkpoints` ze znacznikami `cp_1` .. `cp_8`, instancja `Player` i tak dalej).
+- `picture`: tekstura pokazywana przy wyborze trasy (w folderze `Textures` moda). `loading`: duży obraz ekranu ładowania; `shots`: do czterech kolejnych małych obrazów ekranu ładowania. W miejscu pominiętych pokazywany jest `picture`; bez `picture` używane są obrazy pierwszej trasy gry.
+- `ai`: opis przeciwników w folderze `Scripts` moda, napisany jak `Scripts/AIlayouts.ini` gry: sekcje `AIPlayer<n>` i jedna sekcja `AIRace1` z kluczami `PlayerPath`, `AI<n>Path` (nagrane przejazdy w `CarProfiles/`), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` i innymi. Bez `ai` na trasie nie ma przeciwników, a gracz startuje przy instancji `Player` poziomu.
+- `name`, `description`: tekst lub tabela językowa.
+
+`rc.startRace{track = "<id>"}` uruchamia dodaną trasę po jej identyfikatorze. Dodanych tras nie ma w Mistrzostwach, Wyścigu z duchem ani na stronach gry wieloosobowej; nie są dla nich prowadzone rekordy ani statystyki.
 
 ## 7. Ograniczenia piaskownicy
 

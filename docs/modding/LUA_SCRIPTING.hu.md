@@ -11,7 +11,7 @@ játék fájljait, egy kivétellel: egy játékmód szkriptje (6. fejezet, API 1
 szabályait (egyelőre egyjátékos módban).
 
 A nyelv a [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT-licenc, lásd
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.5**-es verziójáé.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.10**-es verziójáé.
 
 ## 1. Áttekintés
 
@@ -73,6 +73,7 @@ Ezeket globális függvényként kell megadni. Mind elhagyható.
 | `onHit(car, strength)` | a játék ütést ítélt meg: 1 = „Hit!”, 2 = „Great hit!” |
 | `onWater(car)` | egy autó vízbe ért |
 | `onRespawn(car)` | egy autót visszatett a játék a pályára |
+| `onObjectHit(car, name)` | (1.9) egy autó fellökte a pálya egy laza tárgyát (doboz, labda, palack ...); a `name` a tárgy neve a pályán. Lökésenként egyszer |
 | `onRaceEnd(results)` | versenyenként egyszer, amikor a célszkript indul (minden játékos célba ért) |
 | `onOptionChanged(key, value)` | a mod Beállítások oldalán megváltozott egy opció |
 | `onBoost(car, on)` | (1.1) egy autó boostere bekapcsolt (`true`) vagy leállt (`false`) |
@@ -95,10 +96,10 @@ A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorren
 
 | Függvény | Visszaad |
 |---|---|
-| `rc.version` | az API verziója (`"1.5"`) |
+| `rc.version` | az API verziója (`"1.10"`) |
 | `rc.modName` | a mod neve |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = a HUD versenyórája másodpercben (a rajt előtt -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (az 1. játékos célba ért), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér) |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér); (1.8) `airTime` = másodpercek azóta, hogy az autó valamelyik kereke utoljára földet ért (a földön 0), `vy` = a függőleges sebessége m/s-ban (esés közben negatív); az ellenfeleknél mindkettő 0; (1.9) `dir` és `up` = az autó előre és felfelé mutató tengelye `{x, y, z}` alakban, `spin` = a szögsebessége rad/s-ban a világ tengelyei körül (az ellenfeleknél 0) |
 | `rc.player(n)` | az `n`. játékos autójának táblája (1 vagy 2, alapból 1), vagy `nil` |
 | `rc.screen()` | `{w, h, menu, vr, split}`: a renderelés mérete pixelben, az aktuális képernyő neve, VR be, osztott képernyő |
 | `rc.formatTime(seconds, format)` | (1.1) egy idő úgy, ahogy a játék írja: `"m:ss.hh"`, mint a HUD órája (`0:15.89`), vagy `format = "short"` esetén `"m:ss"` |
@@ -482,6 +483,91 @@ mappájába (a hiányzókat figyelmeztetéssel kihagyja): `zombie_ambient.mp3` (
 `thunder01.wav` (új zombi, az egész pályán hallható onnan, ahol történt), `zombie_attack*.wav` (a fertőző érintés,
 mindkét autónál), `heart_beat.wav` (a szívverésed a legközelebbi zombi irányából, gyorsabban, ahogy közeledik),
 `zombie_outro.mp3` (a zombik nyernek), `humans_win.wav` (a túlélők nyernek).
+
+## 6a. Hozzáadott autók, karosszériák és festések (1.6)
+
+Egy mod úgy is adhat autót, karosszériát és festést a játékhoz, hogy a játék sajátjait nem cseréli le. A szkript
+betöltésekor hívd ezeket:
+
+```lua
+-- a car with a chassis of its own (it drives as its base car unless it gives physics values)
+rc.registerCar{
+  id = "mycar", name = {en = "My car", hu = "Az autóm"},
+  base = "Buggy",                   -- "Overkill", "Buggy" or "Warhammer" (or 1 .. 3)
+  file = "RCCarsDB/mycar.sb",       -- a scene database of the mod
+  model = "MyCar",                  -- its models: MyCar, MyCarLOD1, MyCarLOD2, MyCarLOD3
+  skin = "mycar_sk", paints = 3,    -- the paints: textures mycar_sk1 .. mycar_sk3
+  physics = {springLength = 0.17, wheelRad = {0.063, 0.063, 0.063, 0.063}},   -- optional: its own values
+  physicsScale = {speedBaseMax = 0.93, tyresFront = 0.77, tyresRear = 0.77}, -- optional: factors on the base car's
+}
+-- one more body for a car (the game's or an added one): the same chassis and physics
+rc.registerBody{id = "mybody", name = "My body", car = "Buggy",
+                file = "RCCarsDB/mybody.sb", model = "MyBody", skin = "mybody_sk", paints = 2}
+-- one more paint for a car's own body, or (body = "mybody") for an added body
+rc.registerSkin{car = "Buggy", name = "Blue", texture = "myskin_a", texture2 = "myskin_b"}
+```
+
+- **`rc.registerCar`**: saját vázú autó. A `base` autó helyét használja a játékos profiljában (akkor lehet vele
+  versenyezni, ha az alapautó a játékosé), annak a hangját és fejlesztéseit; semmi újat nem ment. `physics` /
+  `physicsScale` nélkül pontosan úgy megy, mint az alapautó.
+- **`rc.registerBody`**: másik karosszéria egy meglévő vázra: a `car` a játék egyik autója vagy egy hozzáadott autó
+  `id`-je. Úgy megy, mint az az autó.
+- **`rc.registerSkin`**: egy további festés. Csak `car`: az autó saját karosszériájához; `body`: egy hozzáadott
+  karosszériához. A `texture2` a játék Buggy és Warhammer autójának második (B) textúrája, ezek kettőt használnak.
+- A Gyors verseny autóválasztója a játék autóit sorolja fel, mindegyik után a hozzá adott karosszériákkal, majd a
+  hozzáadott autókat az övéikkel. Az előnézet alatti **Skin** (Festés) sor választja a festést (a „-" a profil
+  festése). A választásokat nem menti. A hálózati játék, az osztott képernyő, a garázs és a bajnokság a játék
+  autóit használja.
+- A `file` a mod egy jelenet-adatbázisa (`.sb`) a `<model>`, `<model>LOD1` .. `<model>LOD3` modellekkel: a teljes
+  autó (váz és karosszéria), karosszériánál is. A modell objektumai az alapautóét követik (`WHEEL_FRONT_LEFT`, a
+  tengelyek, a `booster_N` / `compressor_N` fejlesztés-alkatrészek ...): a játék a kerekek helyét a modellből veszi.
+- A modell textúráinak adj a modhoz tartozó saját nevet, így egy másik autó textúráját sem cseréled le. A `skin` a
+  festések textúranevének eleje; a modellnek mindet fel kell sorolnia (`<skin>1` .. `<skin><paints>`).
+- A `physics` a játék saját mértékegységeiben ad értéket, a `physicsScale` az alapautó értékét szorozza. Nevek:
+  `speedBaseMax`, `speedBoostMax` (km/h), `boostSpeedUp`, `boostSpeedDown`, `boosters`, `resonators`, `resonatorsForce`, `tyreUpgrades` (4 each), `tyresFront`, `tyresRear`, `angleDriftOn`, `speedDriftOn`, `coeffDriftRear`, `coeffDeepSand`, `coeffWater`, `speedAngMaxRel`, `frictionBearings`, `airResistance`, `angleSteer`, `springLength`, `springLenMin`, `springLenMax`, `springKPos`, `springKSpeed`, `springDx`, `springTouchPoint`, `springDz`, `coeffMomentOX`, `coeffMomentOZ`, `lenAxe`, `angleUpMax`, `angleDownMax`, `wheelRad` (6), `bodyRad` (4), `bodyPos` (4 x {x, y, z}), `centreMass`.
+- Sugárhajtás (hajtóműves autóhoz, mint a PS2-es játék CCCP-je): ha a `physics` megadja a `jetForceForward` értéket, az autó sugárhajtást kap. A PS2-es játék kódját követi, és **csak a levegőben** hat (amikor egy kerék sem ér földet); a földön az autó a kerekeivel megy, mint bármelyik másik. A levegőben: az autó arra repül, amerre néz (az oldalirányú sodródása `jetSideDecayTime` alatt megszűnik), a gáz a vízszintes haladási iránya mentén tolja `jetForceForward` erővel (hátramenet a felével), a kormány `jetForceRotate` erővel tolja az oldalsó hajtóműnél (`jetLeverLen` távolságra), amíg a fordulási perdület el nem éri a `jetMaxYawImpulse` értéket, és az autó vízszintbe fordul (az iránya megmarad) legfeljebb 160 fok/másodperccel, így a kerekeire érkezik. Az erők nincsenek megszorozva az autó tömegével. Elfogadott, de nem használt kulcsok (a kiolvasott PS2-es kód sem használja őket): `jetStabYawSpeed`, `jetStabRollSpeed`, `jetStabRollAngle`, `jetRotateMinSpeed`, `jetCoeffSand`, `jetCoeffGrass`; a `jetPitchDecayTime` a `jetSideDecayTime` régi neve. A `jetGravitySpeed = {..}` és a `jetGravity = {..}` (legfeljebb hat pont, növekvő sebességek km/h-ban) az autó gravitációját a sebességétől teszi függővé, ahogy a PS2-es autónál van (a játék gravitációja 10); az autó ettől magasabbra és messzebbre is ugrik.
+- Hangok (1.7), az `rc.registerCar` és az `rc.registerBody` számára: a `sound = "Overkill" | "Buggy" | "Warhammer"` (vagy 1 .. 3) megadja, melyik gyári autó motorhang-készletével szóljon az autó (alapértelmezés: az alapautóé); a `sounds = {motor_accel1 = "mycar_accel", ...}` egyes hangokat a mod saját fájljából játszik le: a kulcs a játék hangneve (az Overkill nevei minden készletre működnek: `motor_accel1`, `motor_engine`, `motor_idle`, `motor_off`, `motor_reverse`, `motor_decel1` .. `3`, `motor_accel1_ws`, `motor_engine_ws`, `motor_decel1_ws`, `Motor_flying2`, `Motor_flying_end2`, `car_boost`, `car_boost_end`, `car_flying`, `car_landing`, `car_break`, `car_cdt_*`, `car_surf_*`, `car_hit_*`), az érték egy kiterjesztés nélküli fájlnév a mod `Sound` mappájában (`Sound/mycar_accel.wav`). A hiányzó fájl a naplóba kerül, és a játék saját hangja szól. A hangbeállítás nélküli karosszéria úgy szól, mint az autója. Csak a játékos autója használja (az ellenfelek a játék közös AI-hangjaival szólnak). A motorhangnak nincs hangmagasság-váltása: a játék a `motor_accel1` felvételbe a sebességsáv szerint 0 / 1,38 / 3,35 / 6,81 másodpercnél lép be, ezért a csere ugyanígy emelkedjen.
+- Mindegyik hívás eredménye `true`; az azonos `id`-jű autót / karosszériát felülírja. Legfeljebb 16 autó,
+  48 karosszéria, 96 festés.
+
+## 6b. Főmenü-bejegyzések, verseny indítása, tárgyak fellökése (1.9)
+
+```lua
+rc.registerMenu{id = "tutorial", name = {en = "Tutorial", hu = "Oktató"}, onSelect = function()
+  rc.startRace{track = "beach_1", car = "Buggy", laps = 3, mode = "my_mode"}
+end}
+
+function onObjectHit(car, name)            -- a car knocked a can, a ball, a bottle ...
+  rc.log(rc.carName(car) .. " hit " .. name)
+end
+```
+
+| Függvény | Leírás |
+|---|---|
+| `rc.registerMenu{id =, name =, onSelect =}` | gombot ad a főmenühöz, a Mods és a Credits közé. A `name` szöveg vagy nyelvi tábla; az `onSelect` a gomb megnyomásakor fut le. A menüben összesen két ilyen gombnak van hely (az összes modra együtt); a harmadik figyelmeztetéssel kimarad, a hívás `false` értéket ad. Ha van bejegyzés, a menü gombjai kicsit közelebb kerülnek egymáshoz |
+| `rc.startRace{track =, car =, laps =, mode =}` | Gyors versenyt indít a menükből. `track`: a játék tíz pályájának egyike (`"beach_1"` .. `"country_4"`, a megjelenített név, vagy 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, vagy egy hozzáadott autó, illetve karosszéria azonosítója (alapértelmezés: a játékos autója); `laps`: a körök száma; `mode`: egy `rc.registerMode` hívással regisztrált játékmód azonosítója (alapértelmezés: sima verseny). `true`, ha az indítás sorba került (egy másodpercen belül megtörténik), különben `false` és az ok (verseny fut, hálózati játék, nincs kiválasztott játékos) |
+| `rc.addSpin(car, x, y, z)` | ennyivel változtatja az autó szögsebességét (rad/s a világ tengelyei körül), például hogy a játékos a levegőben forgathassa az autót. Csak saját fizikájú autóra (a játékosokéra), hálózati versenyben nem; `true`, ha megtörtént |
+
+### Hozzáadott pályák (1.10)
+
+```lua
+rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"},
+  description = {en = "Learn to drive.", hu = "Tanulj meg vezetni."},
+  level = "tutorial",                    -- RCCarsDB/tutorial.sb of the mod
+  picture = "tutorial_pic",              -- the selection picture on the Quick race page
+  loading = "tutorial_load",             -- the loading screen's big picture
+  shots = {"tutorial_s1", "tutorial_s2"},  -- up to four more small pictures of the loading screen
+  ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
+```
+
+Az `rc.registerTrack` a mod egy pályáját adja a Gyors verseny oldalához, a játék tíz pályája után (összesen legfeljebb 8 hozzáadott pálya). Minden, amit megnevez, a játék saját formátumában van, a mod mappáiban:
+
+- `level`: a pálya adatbázisa, `RCCarsDB/<level>.sb`, úgy felépítve, mint a játék pályái (a `Checkpoints` mappa a `cp_1` .. `cp_8` jelölőkkel, a `Player` példány, és így tovább).
+- `picture`: a pálya kiválasztásakor mutatott textúra (a mod `Textures` mappájában). `loading`: a betöltőképernyő nagy képe; `shots`: legfeljebb négy további kis kép a betöltőképernyőre. Ami kimarad, annak a helyén a `picture` áll; `picture` nélkül az első gyári pálya képei látszanak.
+- `ai`: az ellenfelek leírása a mod `Scripts` mappájában, úgy megírva, mint a játék `Scripts/AIlayouts.ini` fájlja: az `AIPlayer<n>` szakaszok és egy `AIRace1` szakasz a `PlayerPath`, `AI<n>Path` (felvett menetek a `CarProfiles/` mappában), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` stb. kulcsokkal. `ai` nélkül a pályán nincs ellenfél, és a játékos a pálya `Player` példányánál indul.
+- `name`, `description`: szöveg vagy nyelvi tábla.
+
+Az `rc.startRace{track = "<id>"}` az azonosítójával indít el egy hozzáadott pályát. A hozzáadott pályák nincsenek benne a Bajnokságban, a Szellemversenyben és a többjátékos oldalakon, és nem készül róluk rekord vagy statisztika.
 
 ## 7. A homokozó korlátai
 

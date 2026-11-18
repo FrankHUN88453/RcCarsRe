@@ -10,7 +10,7 @@ RcCarsRe умеет запускать небольшие скрипты Lua, в
 режима (глава 6, API 1.4) ведёт правила своих гонок (пока только в одиночной игре).
 
 Язык — [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, лицензия MIT, см.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Здесь описана версия API **1.5**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Здесь описана версия API **1.10**.
 
 ## 1. Обзор
 
@@ -70,6 +70,7 @@ mods\
 | `onHit(car, strength)` | игра засчитала удар: 1 — «Hit!», 2 — «Great hit!» |
 | `onWater(car)` | машина попала в воду |
 | `onRespawn(car)` | машину вернули на трассу |
+| `onObjectHit(car, name)` | (1.9) машина сбила незакреплённый предмет уровня (банку, мяч, бутылку ...); `name` - имя предмета на уровне. Один раз за удар |
 | `onRaceEnd(results)` | один раз за гонку, когда запускается финишный скрипт (все игроки финишировали) |
 | `onOptionChanged(key, value)` | на странице настроек мода изменили параметр |
 | `onBoost(car, on)` | (1.1) ускоритель машины включился (`true`) или выключился (`false`) |
@@ -92,10 +93,10 @@ mods\
 
 | Функция | Возвращает |
 |---|---|
-| `rc.version` | строка версии API (`"1.5"`) |
+| `rc.version` | строка версии API (`"1.10"`) |
 | `rc.modName` | имя мода |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` — таймер гонки HUD в секундах (-1 до старта). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (игрок 1 финишировал), `results` |
-| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` или `nil`. `speed` в км/ч; `player` = 1 / 2 у машины игрока; `raceTime` — время машины с момента старта (останавливается на финише) |
+| `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` или `nil`. `speed` в км/ч; `player` = 1 / 2 у машины игрока; `raceTime` — время машины с момента старта (останавливается на финише); (1.8) `airTime` = секунды с момента, когда колесо машины последний раз касалось земли (на земле 0), `vy` = вертикальная скорость в м/с (при падении отрицательная); у соперников оба равны 0; (1.9) `dir` и `up` = оси машины вперёд и вверх в виде `{x, y, z}`, `spin` = её угловая скорость в рад/с вокруг осей мира (у соперников 0) |
 | `rc.player(n)` | таблица машины игрока `n` (1 или 2, по умолчанию 1) или `nil` |
 | `rc.screen()` | `{w, h, menu, vr, split}`: размер изображения в пикселях, имя текущего экрана, включён ли VR, разделённый экран |
 | `rc.formatTime(seconds, format)` | (1.1) время так, как его пишет игра: `"m:ss.hh"`, как таймер HUD (`0:15.89`), или при `format = "short"` — `"m:ss"` |
@@ -477,6 +478,88 @@ rc.registerMode{
 `thunder01.wav` (новый зомби, слышен по всей трассе с места события), `zombie_attack*.wav` (заражающий контакт, у обеих
 машин), `heart_beat.wav` (твоё сердцебиение со стороны ближайшего зомби, чаще по мере приближения),
 `zombie_outro.mp3` (победа зомби), `humans_win.wav` (победа выживших).
+
+## 6a. Добавленные машины, кузова и раскраски (1.6)
+
+Мод может добавить машины, кузова и раскраски, не заменяя имеющиеся в игре. Вызовите при загрузке скрипта:
+
+```lua
+-- a car with a chassis of its own (it drives as its base car unless it gives physics values)
+rc.registerCar{
+  id = "mycar", name = {en = "My car", hu = "Az autóm"},
+  base = "Buggy",                   -- "Overkill", "Buggy" or "Warhammer" (or 1 .. 3)
+  file = "RCCarsDB/mycar.sb",       -- a scene database of the mod
+  model = "MyCar",                  -- its models: MyCar, MyCarLOD1, MyCarLOD2, MyCarLOD3
+  skin = "mycar_sk", paints = 3,    -- the paints: textures mycar_sk1 .. mycar_sk3
+  physics = {springLength = 0.17, wheelRad = {0.063, 0.063, 0.063, 0.063}},   -- optional: its own values
+  physicsScale = {speedBaseMax = 0.93, tyresFront = 0.77, tyresRear = 0.77}, -- optional: factors on the base car's
+}
+-- one more body for a car (the game's or an added one): the same chassis and physics
+rc.registerBody{id = "mybody", name = "My body", car = "Buggy",
+                file = "RCCarsDB/mybody.sb", model = "MyBody", skin = "mybody_sk", paints = 2}
+-- one more paint for a car's own body, or (body = "mybody") for an added body
+rc.registerSkin{car = "Buggy", name = "Blue", texture = "myskin_a", texture2 = "myskin_b"}
+```
+
+- **`rc.registerCar`**: машина со своим шасси. Она использует место машины `base` в профиле игрока (на ней можно
+  ехать, если базовая машина есть у игрока), её звук и улучшения; ничего нового не сохраняется. Без `physics` /
+  `physicsScale` она едет точно как базовая.
+- **`rc.registerBody`**: другой кузов на имеющемся шасси: `car` это одна из машин игры или `id` добавленной машины.
+  Едет как эта машина.
+- **`rc.registerSkin`**: ещё одна раскраска. Только `car`: для собственного кузова машины; `body`: для
+  добавленного кузова. `texture2` это вторая (B) текстура Buggy и Warhammer игры, у их кузовов две текстуры.
+- В выборе машины Быстрой гонки идут машины игры, каждая со своими добавленными кузовами, затем добавленные машины
+  со своими. Строка **Skin** под предпросмотром выбирает раскраску («-» = раскраска из профиля игрока). Выбор не
+  сохраняется. Сетевая игра, разделённый экран, гараж и чемпионат используют машины игры.
+- `file` это база сцены (`.sb`) в моде с моделями `<model>`, `<model>LOD1` .. `<model>LOD3`: вся машина (шасси и
+  кузов), и для кузова тоже. Объекты модели повторяют объекты базовой машины (`WHEEL_FRONT_LEFT`, оси, детали
+  улучшений `booster_N` / `compressor_N` ...): места колёс игра берёт из модели.
+- Дайте текстурам модели собственные имена мода, чтобы не заменить текстуру другой машины. `skin` это начало имён
+  текстур раскрасок; модель должна перечислять их все (`<skin>1` .. `<skin><paints>`).
+- `physics` задаёт значения в единицах игры, `physicsScale` умножает значения базовой машины. Имена: `speedBaseMax`, `speedBoostMax` (km/h), `boostSpeedUp`, `boostSpeedDown`, `boosters`, `resonators`, `resonatorsForce`, `tyreUpgrades` (4 each), `tyresFront`, `tyresRear`, `angleDriftOn`, `speedDriftOn`, `coeffDriftRear`, `coeffDeepSand`, `coeffWater`, `speedAngMaxRel`, `frictionBearings`, `airResistance`, `angleSteer`, `springLength`, `springLenMin`, `springLenMax`, `springKPos`, `springKSpeed`, `springDx`, `springTouchPoint`, `springDz`, `coeffMomentOX`, `coeffMomentOZ`, `lenAxe`, `angleUpMax`, `angleDownMax`, `wheelRad` (6), `bodyRad` (4), `bodyPos` (4 x {x, y, z}), `centreMass`.
+- Реактивная тяга (для машины с реактивными двигателями, как CCCP из игры для PS2): если в `physics` задан `jetForceForward`, машина получает реактивную тягу. Она следует коду игры для PS2 и действует **только в воздухе** (когда ни одно колесо не касается земли); на земле машина едет на колёсах, как любая другая. В воздухе: машина летит туда, куда смотрит (боковой снос гасится за `jetSideDecayTime`), газ толкает её вдоль горизонтального курса с силой `jetForceForward` (задний ход - с половиной), руль толкает с силой `jetForceRotate` у бокового двигателя (на расстоянии `jetLeverLen`), пока момент импульса поворота не достигнет `jetMaxYawImpulse`, и машина выравнивается по горизонту (курс сохраняется) со скоростью до 160 градусов в секунду, поэтому приземляется на колёса. Силы не умножаются на массу машины. Принимаются, но не используются (прочитанный код PS2 их тоже не использует): `jetStabYawSpeed`, `jetStabRollSpeed`, `jetStabRollAngle`, `jetRotateMinSpeed`, `jetCoeffSand`, `jetCoeffGrass`; `jetPitchDecayTime` - старое имя `jetSideDecayTime`. `jetGravitySpeed = {..}` вместе с `jetGravity = {..}` (до шести точек, скорости в км/ч по возрастанию) делают гравитацию машины зависящей от скорости, как у машины PS2 (гравитация игры равна 10); машина при этом прыгает выше и дальше.
+- Звуки (1.7), для `rc.registerCar` и `rc.registerBody`: `sound = "Overkill" | "Buggy" | "Warhammer"` (или 1 .. 3) выбирает, набором звуков двигателя какой машины игры пользуется машина (по умолчанию: базовой); `sounds = {motor_accel1 = "mycar_accel", ...}` проигрывает отдельные звуки из файлов мода: ключ - имя звука игры (имена Overkill подходят для любого набора: `motor_accel1`, `motor_engine`, `motor_idle`, `motor_off`, `motor_reverse`, `motor_decel1` .. `3`, `motor_accel1_ws`, `motor_engine_ws`, `motor_decel1_ws`, `Motor_flying2`, `Motor_flying_end2`, `car_boost`, `car_boost_end`, `car_flying`, `car_landing`, `car_break`, `car_cdt_*`, `car_surf_*`, `car_hit_*`), значение - имя файла без расширения в папке `Sound` мода (`Sound/mycar_accel.wav`). Отсутствующий файл записывается в журнал, и играет собственный звук игры. Кузов без настроек звука звучит как его машина. Ими пользуется только машина игрока (соперники делят общие звуки ИИ). Высота тона двигателя не меняется: игра входит в запись `motor_accel1` на 0 / 1,38 / 3,35 / 6,81 с по диапазону скорости, поэтому замена должна нарастать так же.
+- Каждый вызов возвращает `true`; машина / кузов с тем же `id` заменяется. Не более 16 машин, 48 кузовов,
+  96 раскрасок.
+
+## 6b. Пункты главного меню, запуск гонки, сбитые предметы (1.9)
+
+```lua
+rc.registerMenu{id = "tutorial", name = {en = "Tutorial", hu = "Oktató"}, onSelect = function()
+  rc.startRace{track = "beach_1", car = "Buggy", laps = 3, mode = "my_mode"}
+end}
+
+function onObjectHit(car, name)            -- a car knocked a can, a ball, a bottle ...
+  rc.log(rc.carName(car) .. " hit " .. name)
+end
+```
+
+| Функция | Описание |
+|---|---|
+| `rc.registerMenu{id =, name =, onSelect =}` | добавляет кнопку в главное меню, между Mods и Credits. `name` - текст или языковая таблица; `onSelect` выполняется при нажатии кнопки. В меню есть место всего для двух таких кнопок (на все моды); третья пропускается с предупреждением, вызов возвращает `false`. При наличии пункта кнопки меню становятся немного ближе друг к другу |
+| `rc.startRace{track =, car =, laps =, mode =}` | запускает Быструю гонку из меню. `track`: одна из десяти трасс игры (`"beach_1"` .. `"country_4"`, отображаемое имя или 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"` или идентификатор добавленной машины либо кузова (по умолчанию: машина игрока); `laps`: число кругов; `mode`: идентификатор режима, зарегистрированного через `rc.registerMode` (по умолчанию: обычная гонка). Возвращает `true`, если запуск поставлен в очередь (происходит в течение секунды), иначе `false` и причину (идёт гонка, сетевая игра, игрок не выбран) |
+| `rc.addSpin(car, x, y, z)` | изменяет угловую скорость машины на эту величину (рад/с вокруг осей мира), например чтобы игрок мог вращать машину в воздухе. Только для машины с собственной физикой (машины игроков), не в сетевой гонке; возвращает `true`, если выполнено |
+
+### Добавленные трассы (1.10)
+
+```lua
+rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"},
+  description = {en = "Learn to drive.", hu = "Tanulj meg vezetni."},
+  level = "tutorial",                    -- RCCarsDB/tutorial.sb of the mod
+  picture = "tutorial_pic",              -- the selection picture on the Quick race page
+  loading = "tutorial_load",             -- the loading screen's big picture
+  shots = {"tutorial_s1", "tutorial_s2"},  -- up to four more small pictures of the loading screen
+  ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
+```
+
+`rc.registerTrack` добавляет трассу мода на страницу Быстрой гонки, после десяти трасс игры (всего не более 8 добавленных трасс). Всё, что в нём названо, хранится в собственных форматах игры, в папках мода:
+
+- `level`: база уровня `RCCarsDB/<level>.sb`, устроенная как уровни игры (папка `Checkpoints` с метками `cp_1` .. `cp_8`, экземпляр `Player` и так далее).
+- `picture`: текстура, показываемая при выборе трассы (в папке `Textures` мода). `loading`: большая картинка экрана загрузки; `shots`: до четырёх дополнительных маленьких картинок экрана загрузки. Вместо пропущенного показывается `picture`; без `picture` используются картинки первой трассы игры.
+- `ai`: описание соперников в папке `Scripts` мода, написанное как `Scripts/AIlayouts.ini` игры: секции `AIPlayer<n>` и одна секция `AIRace1` с ключами `PlayerPath`, `AI<n>Path` (записанные заезды в `CarProfiles/`), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` и другими. Без `ai` на трассе нет соперников, а игрок стартует у экземпляра `Player` уровня.
+- `name`, `description`: текст или языковая таблица.
+
+`rc.startRace{track = "<id>"}` запускает добавленную трассу по её идентификатору. Добавленных трасс нет в Чемпионате, Гонке с призраком и на страницах сетевой игры, рекорды и статистика для них не ведутся.
 
 ## 7. Ограничения песочницы
 
