@@ -106,6 +106,7 @@ Type them into the chat with `/`. The host can also type them into the -dev cons
 | `/bans` | host | the bans |
 | `/say <text>` | host | a "[SERVER] " line to everybody (also from the host's -dev console: `say ...`) |
 | `/map <track>`, `/laps <n>` | host | the next race's track (beach_1 .., the menu name or 1 .. 10) and laps |
+| `/mode [id]` | host | the game mode of the next race, one a mod registers (e.g. `/mode zombies`); `/mode` lists them, `/mode race` is the normal race. In the lobby only; every player needs the mod |
 | `/votekick <name or #n> [reason]`, `/votemap <track>`, `/voterestart` | everybody | start a vote (a votekick needs `NetVoteKickMin` players, the host included; its target cannot vote) |
 | `/yes`, `/no` (or **F1** / **F2** in a race) | everybody | answer the vote |
 | `/cancelvote` | host | ends the vote |

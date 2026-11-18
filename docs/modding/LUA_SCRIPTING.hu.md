@@ -11,7 +11,7 @@ játék fájljait, egy kivétellel: egy játékmód szkriptje (6. fejezet, API 1
 szabályait (egyelőre egyjátékos módban).
 
 A nyelv a [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT-licenc, lásd
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.4**-es verziójáé.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.5**-es verziójáé.
 
 ## 1. Áttekintés
 
@@ -95,7 +95,7 @@ A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorren
 
 | Függvény | Visszaad |
 |---|---|
-| `rc.version` | az API verziója (`"1.4"`) |
+| `rc.version` | az API verziója (`"1.5"`) |
 | `rc.modName` | a mod neve |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = a HUD versenyórája másodpercben (a rajt előtt -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (az 1. játékos célba ért), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér) |
@@ -435,11 +435,28 @@ némán tartja a verseny zenéjét (`rc.levelAmbient(false, -100)`), az eredmén
 zárózenéje hallatszik; a zene a verseny elhagyásakor tér vissza. Hangfájlok: `.wav` (PCM vagy Microsoft ADPCM),
 `.ogg`, `.mp3`, `.au`.
 
-### Hálózati versenyek
+### Hálózati versenyek (1.5)
 
-Ebben a verzióban a módok csak egyjátékos módban futnak (Gyors verseny). Az API a gazdagép által vezetett módokra
-készült: minden döntés (időzítő, visszaszámlálás, üzenetek, csapatok, autócserék, gépi parancsok, eredmények) a mód
-hívásain megy át, így hálózati versenyben csak a gazdagép szkriptje dönt majd, a többi gép megmutatja.
+A módok hálózati versenyben is futnak. A gazdagép a lobbiban a `/mode <id>` csevegőparanccsal választ (`/mode`
+felsorolja a módokat, `/mode race` újra a sima verseny); a mód modja minden játékosnál kell. A versenyben **minden
+gép futtatja a mód szkriptjét, de csak a gazdagépé dönt**:
+
+| Hívás / esemény | Mit csinál |
+|---|---|
+| `rc.mode.host()` | `true` azon a gépen, amelyiknek a szkriptje dönt: egyjátékos módban mindig, hálózatban csak a gazdagépen |
+| `rc.mode.send(name, ...)` | a döntő szkript közli, mit döntött: az `onModeEvent(name, ...)` itt azonnal lefut, a klienseken pedig amikor az üzenet megérkezik. Értékek: `nil`, logikai, szám, szöveg (legfeljebb 32, 1000 bájt). Kliensen nem csinál semmit, `false` az eredménye |
+| `onModeEvent(name, ...)` | itt változtasd a kört (`rc.setCar`, `rc.setCarTeam`, `rc.mode.freeze` / `listText` / `message` / `timer` / `finish` ...), így minden gép ugyanazokat a hívásokat teszi |
+| `onModeLoad(info)` / `onModeStart(info)` | `info.network` (hálózati verseny) és `info.host` (ez a gép dönt) |
+
+- Csak ott dönts, ahol `rc.mode.host()` igaz (`onCollision`, `onModeTimer`, az `onModeFrame` ellenőrzései), és az időt
+  vagy a véletlen választást küldd el, ne vedd újra minden gépen.
+- A gazdagép `onCollision` eseménye megkapja azokat az érintéseket is, amelyeket a kliensek a saját autójukról
+  jelentenek; az `onRespawnBlocked` csak a gazdagépen fut (a kliens szól a saját autójáról); a gazdagépen az
+  `rc.mode.respawnCar(car)` egy másik játékos autóját annak a játékosnak a gépén teszi vissza.
+- `rc.options`: a `perPlayer = true` beállítás (kép, hang) minden játékosé marad; a többinek a verseny alatt minden
+  gépen a gazdagép értéke él (`rc.setting`).
+- Hálózati versenyben nincs gépi autó (`rc.ai` eredménye `false`), az `rc.setCar` csak a gép saját autójának a
+  fizikáját cseréli, és a visszatett autó a rajthelyére kerül (az útpontok a gépi autók útvonalaiból vannak).
 
 ### A Zombik példa
 

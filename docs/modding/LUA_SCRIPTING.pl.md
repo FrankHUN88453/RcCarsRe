@@ -10,7 +10,7 @@ oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać 
 wyjątkiem: skrypt trybu gry (rozdział 6, API 1.4) prowadzi zasady własnych wyścigów (na razie w grze jednoosobowej).
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.4**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.5**.
 
 ## 1. Przegląd
 
@@ -92,7 +92,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.4"`) |
+| `rc.version` | wersja API (`"1.5"`) |
 | `rc.modName` | nazwa moda |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie) |
@@ -430,11 +430,28 @@ Dopóki tryb trzyma muzykę wyścigu w ciszy (`rc.levelAmbient(false, -100)`), m
 słychać było własny dźwięk końcowy trybu; muzyka wraca po wyjściu z wyścigu. Pliki dźwiękowe: `.wav` (PCM albo
 Microsoft ADPCM), `.ogg`, `.mp3`, `.au`.
 
-### Wyścigi sieciowe
+### Wyścigi sieciowe (1.5)
 
-W tej wersji tryby działają tylko w grze jednoosobowej (Szybki wyścig). API jest przygotowane na tryby prowadzone przez
-hosta: każda decyzja (zegar, odliczanie, komunikaty, drużyny, zamiany samochodów, rozkazy SI, wyniki) przechodzi przez
-wywołania trybu, więc w wyścigu sieciowym decydować będzie tylko skrypt hosta, a pozostałe komputery to pokażą.
+Tryby działają także w wyścigu sieciowym. Host wybiera tryb w lobby poleceniem czatu `/mode <id>` (`/mode` wypisuje
+tryby, `/mode race` przywraca zwykły wyścig); mod trybu musi mieć każdy gracz. W wyścigu **skrypt trybu działa na
+każdym komputerze, ale decyduje tylko skrypt hosta**:
+
+| Wywołanie / zdarzenie | Co robi |
+|---|---|
+| `rc.mode.host()` | `true` na komputerze, którego skrypt decyduje: zawsze w grze jednoosobowej, w sieci tylko u hosta |
+| `rc.mode.send(name, ...)` | decydujący skrypt ogłasza decyzję: `onModeEvent(name, ...)` działa tu od razu, a u klientów po nadejściu wiadomości. Wartości: `nil`, logiczne, liczby, napisy (najwyżej 32, 1000 bajtów). U klienta nic nie robi i zwraca `false` |
+| `onModeEvent(name, ...)` | tutaj zmieniaj rundę (`rc.setCar`, `rc.setCarTeam`, `rc.mode.freeze` / `listText` / `message` / `timer` / `finish` ...), aby każdy komputer wykonał te same wywołania |
+| `onModeLoad(info)` / `onModeStart(info)` | `info.network` (wyścig sieciowy) i `info.host` (decyduje ten komputer) |
+
+- Decyduj tylko tam, gdzie `rc.mode.host()` jest prawdą (`onCollision`, `onModeTimer`, sprawdzenia w `onModeFrame`),
+  a czas lub losowy wybór wysyłaj w wiadomości zamiast liczyć go ponownie na każdym komputerze.
+- `onCollision` u hosta dostaje też kontakty, które klienci zgłaszają dla swoich samochodów; `onRespawnBlocked` działa
+  tylko u hosta (klient zgłasza swój samochód); `rc.mode.respawnCar(car)` u hosta przywraca samochód innego gracza
+  przez jego komputer.
+- `rc.options`: opcja z `perPlayer = true` (obraz, dźwięk) zostaje u każdego własna; pozostałe mają podczas wyścigu na
+  wszystkich komputerach wartość hosta (`rc.setting`).
+- W wyścigu sieciowym nie ma samochodów SI (`rc.ai` zwraca `false`), `rc.setCar` zmienia fizykę tylko własnego
+  samochodu, a przywrócony samochód wraca na miejsce startowe (punkty drogi pochodzą ze ścieżek SI).
 
 ### Przykład „Zombie”
 

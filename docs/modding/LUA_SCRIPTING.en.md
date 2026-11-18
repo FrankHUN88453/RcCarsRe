@@ -7,10 +7,10 @@ positions, lap times), react to events (a lap, a checkpoint, a hit, a jump, an o
 ...) and do local things: draw texts, pictures and boxes on the HUD, play sounds, move the camera, change the fog,
 the sun and the lights, rumble the gamepad, write to the log and keep its own settings and statistics.
 Scripts cannot change the race, the cars or the game's files, with one exception: the script of a game mode
-(chapter 6, API 1.4) runs the rules of its own races (single player for now).
+(chapter 6, API 1.4) runs the rules of its own races (single player, and since API 1.5 network races too).
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.4**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.5**.
 
 ## 1. Overview
 
@@ -19,7 +19,8 @@ The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licen
 - Mods are loaded in the Mods screen's order from the bottom up: the lowest-priority mod first, the top mod last.
 - The game calls the script's global event functions (`onFrame`, `onLap`, ...) when they exist.
 - Everything a script does is local to your computer: HUD, sound, camera, fog, lights, gamepad, log, its own files.
-  Scripts never send anything over the network and do not affect other players in a network race.
+  Scripts send nothing over the network and do not affect other players in a network race; the one exception
+  is a game mode's script on the host (`rc.mode.send`, chapter 6 "Network races").
 
 ## 2. File layout
 
@@ -92,7 +93,7 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.4"`) |
+| `rc.version` | the API version string (`"1.5"`) |
 | `rc.modName` | the mod's name |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes) |
@@ -428,11 +429,28 @@ mode keeps the race music silent (`rc.levelAmbient(false, -100)`), the results p
 mode's own ending sound is heard; the music comes back when the race is left. Sound files: `.wav` (PCM or
 Microsoft ADPCM), `.ogg`, `.mp3`, `.au`.
 
-### Network races
+### Network races (1.5)
 
-In this version the modes run in single player only (the Quick race). The API is made for host-run modes:
-every decision (timer, countdown, messages, teams, model swaps, AI orders, results) goes through the mode's
-calls, so in a network race only the host's script will decide and the other machines will show it.
+A mode also runs in a network race. The host picks it in the lobby with the chat command `/mode <id>` (`/mode`
+lists the modes, `/mode race` is the normal race again); every player needs the mode's mod. In the race **every
+machine runs the mode's script, but only the host's decides**:
+
+| Call / event | What it does |
+|---|---|
+| `rc.mode.host()` | `true` on the machine whose script decides: always in single player, only on the host in a network race |
+| `rc.mode.send(name, ...)` | the deciding script tells what it decided: `onModeEvent(name, ...)` runs here at once and on every client when the message arrives. Values: `nil`, booleans, numbers, strings (at most 32, 1000 bytes). On a client it does nothing and returns `false` |
+| `onModeEvent(name, ...)` | change the round here (`rc.setCar`, `rc.setCarTeam`, `rc.mode.freeze` / `listText` / `message` / `timer` / `finish` ...), so every machine makes the same calls |
+| `onModeLoad(info)` / `onModeStart(info)` | `info.network` (a network race) and `info.host` (this machine decides) |
+
+- Decide only where `rc.mode.host()` is true (`onCollision`, `onModeTimer`, the checks in `onModeFrame`), and send the
+  time or the random choice along instead of taking it again on each machine.
+- `onCollision` on the host also gets the contacts the clients report about their own cars; `onRespawnBlocked` runs
+  on the host only (a client tells it about its own car); `rc.mode.respawnCar(car)` on the host puts another player's
+  car back through that player's machine.
+- `rc.options`: an option with `perPlayer = true` (look, sound) stays each player's own; every other option has the
+  host's value on all machines during the race (`rc.setting`).
+- A network race has no AI cars (`rc.ai` returns `false`), `rc.setCar` changes the physics only of the machine's own
+  car, and a car put back goes to its start place (the road points come from the AI's paths).
 
 ### The Zombies example
 
@@ -501,7 +519,8 @@ survivors win).
 - `drift_air`: when player 1's car lands after a jump it shows the time in the air, gives a short rumble and a
   light-bar flash, and keeps the best air time per track and the jump count with `rc.stats`.
 - `photo_mode`: a photo mode (P or the pad's Back / Share / Create): the race paused, the HUD hidden, a free camera, F12 / A for a photo, rc.stats counts them (API 1.2).
-- `zombies`: a game mode (API 1.4): a tag / infection game against the AI, see "Game modes".
+- `zombies`: a game mode (API 1.5): a tag / infection game against the AI or, in a network race, the other
+  players; see "Game modes".
 
 A minimal script:
 

@@ -107,6 +107,7 @@ Wpisuj je w czat z `/`. Host może je też wpisać w konsolę -dev bez `/`.
 | `/bans` | host | bany |
 | `/say <tekst>` | host | wiersz "[SERVER] " do wszystkich (także z konsoli -dev hosta: `say ...`) |
 | `/map <trasa>`, `/laps <n>` | host | trasa następnego wyścigu (beach_1 .., nazwa z menu lub 1 .. 10) i okrążenia |
+| `/mode [id]` | host | tryb gry następnego wyścigu z moda (np. `/mode zombies`); `/mode` wypisuje tryby, `/mode race` to zwykły wyścig. Tylko w lobby; mod musi mieć każdy gracz |
 | `/votekick <nazwa lub #n> [powód]`, `/votemap <trasa>`, `/voterestart` | wszyscy | rozpoczyna głosowanie (votekick wymaga `NetVoteKickMin` graczy razem z hostem; cel nie głosuje) |
 | `/yes`, `/no` (w wyścigu **F1** / **F2**) | wszyscy | odpowiedź w głosowaniu |
 | `/cancelvote` | host | kończy głosowanie |

@@ -108,6 +108,7 @@ A chatbe `/`-rel írd őket. A host a -dev konzolba `/` nélkül is írhatja.
 | `/bans` | host | a kitiltások |
 | `/say <szöveg>` | host | "[SERVER] " előtagú sor mindenkinek (a host -dev konzoljából is: `say ...`) |
 | `/map <pálya>`, `/laps <n>` | host | a következő verseny pályája (beach_1 .., a menü neve vagy 1 .. 10) és körei |
+| `/mode [id]` | host | a következő verseny játékmódja, amit egy mod ad (pl. `/mode zombies`); `/mode` felsorolja őket, `/mode race` a sima verseny. Csak a lobbiban; a mod minden játékosnál kell |
 | `/votekick <név vagy #n> [ok]`, `/votemap <pálya>`, `/voterestart` | mindenki | szavazás indítása (a votekickhez `NetVoteKickMin` játékos kell, a hosttal együtt; a célpont nem szavazhat) |
 | `/yes`, `/no` (versenyben **F1** / **F2**) | mindenki | válasz a szavazásra |
 | `/cancelvote` | host | lezárja a szavazást |

@@ -1,8 +1,14 @@
--- Zombies: a tag / infection game mode (Lua API 1.4).
+-- Zombies: a tag / infection game mode (Lua API 1.5).
 -- Everyone gets a head start; then one car (the player's or an AI's) becomes the zombie: it turns into a
 -- Warhammer in its green camouflage paint (and drives like one). A grey-green fog hangs over the round.
 -- A zombie that touches a survivor infects it. The zombies win when everyone is infected; the survivors
--- win when the time runs out. Pick "Zombies" in the Quick race's Mode row.
+-- win when the time runs out. Pick "Zombies" in the Quick race's Mode row, or in a network lobby the host types
+-- "/mode zombies" (every player needs this mod).
+--
+-- The network: every machine runs this script, but only the host's decides (rc.mode.host()). What it decides
+-- (the outbreak, an infection, a survivor who is out, the end) it tells with rc.mode.send, and every machine,
+-- the host too, changes the round in onModeEvent below; so all of them make the same calls. The rules' options
+-- are the host's on every machine; the look and sound options (perPlayer) are each player's own.
 
 local ID = "zombies"
 
@@ -84,18 +90,18 @@ rc.options{
   {key = "timeLimit", type = "slider", label = T.timeLimit, min = 1, max = 10, step = 1, default = 5},
   {key = "headStart", type = "slider", label = T.headStart, min = 3, max = 30, step = 1, default = 10},
   {key = "contact", type = "slider", label = T.contact, min = 0, max = 30, step = 1, default = 3},
-  {key = "fog", type = "bool", label = T.fogOn, default = true},
-  {key = "fogStrength", type = "slider", label = T.fogStrength, min = 1, max = 10, step = 1, default = 5},
+  {key = "fog", perPlayer = true, type = "bool", label = T.fogOn, default = true},
+  {key = "fogStrength", perPlayer = true, type = "slider", label = T.fogStrength, min = 1, max = 10, step = 1, default = 5},
   {key = "aggression", type = "slider", label = T.aggression, min = 1, max = 10, step = 1, default = 7},
   {key = "caution", type = "slider", label = T.caution, min = 1, max = 10, step = 1, default = 5},
-  {key = "ambient", type = "bool", label = T.ambient, default = true},
-  {key = "ambientVolume", type = "slider", label = T.ambientVol, min = 0, max = 100, step = 5, default = 50},
-  {key = "heartbeat", type = "bool", label = T.heartbeat, default = true},
-  {key = "heartRange", type = "slider", label = T.heartRange, min = 10, max = 80, step = 5, default = 40},
+  {key = "ambient", perPlayer = true, type = "bool", label = T.ambient, default = true},
+  {key = "ambientVolume", perPlayer = true, type = "slider", label = T.ambientVol, min = 0, max = 100, step = 5, default = 50},
+  {key = "heartbeat", perPlayer = true, type = "bool", label = T.heartbeat, default = true},
+  {key = "heartRange", perPlayer = true, type = "slider", label = T.heartRange, min = 10, max = 80, step = 5, default = 40},
   {key = "fallRule", type = "enum", label = T.fallRule, values = {"zombie", "out"},
    labels = {T.fallZombie, T.fallOut}, default = "zombie"},
   {key = "backDelay", type = "slider", label = T.backDelay, min = 1, max = 10, step = 1, default = 3},
-  {key = "endShot", type = "bool", label = T.endShot, default = true},
+  {key = "endShot", perPlayer = true, type = "bool", label = T.endShot, default = true},
 }
 
 -- The mod's sounds (in its sounds\ folder; they are the mod author's own files and are not part of the public
@@ -185,6 +191,7 @@ end
 -- the AI orders: a zombie chases the nearest survivor it can reach by the road (the game picks it and switches only
 -- when another gets clearly nearer); a survivor flees from all zombies, keeping "caution" metres of clearance
 local function orders()
+  if S.network then return end           -- (a network race has no AI cars)
   local zs, ss = zombies(), survivors()
   local speed = 0.7 + 0.03 * rc.setting("aggression", 7)      -- 0.73 .. 1.0 of the throttle
   local caution = 2 + 1.2 * rc.setting("caution", 5)          -- 3.2 .. 14 m
@@ -218,12 +225,17 @@ local function thunder(car, fallback)
 end
 
 -- the infecting contact: one of the attack sounds at both cars (3D, each where its car is)
-local function attackSound(z, s)
-  if #attacks == 0 then return end
+local function pickAttack()              -- (the deciding machine picks the file: the same one everywhere)
+  if #attacks == 0 then return "" end
   local k = math.random(1, #attacks)
   if #attacks > 1 and attacks[k] == lastAttack then k = k % #attacks + 1 end
   lastAttack = attacks[k]
-  local snd = "sounds\\" .. attacks[k]
+  return attacks[k]
+end
+
+local function attackSound(z, s, file)
+  if not file or file == "" then return end
+  local snd = "sounds\\" .. file
   rc.playSound(snd, {car = z, minDist = 6, maxDist = 80})
   rc.playSound(snd, {car = s, minDist = 6, maxDist = 80})
 end
@@ -255,10 +267,19 @@ local function heartbeat(now)
                        interval, vol))
 end
 
+-- the decision (the deciding machine only): told to every machine, which all do applyInfect
 local function infect(car, by, fell)
+  if not rc.mode.host() or S.zombie[car] then return end
+  rc.mode.send("infect", car, by or 0, by and "by" or fell and "fell" or "zero", rc.mode.clock(),
+               by and pickAttack() or "")
+end
+
+local function applyInfect(car, by, kind, when, attack)
   if S.zombie[car] then return end
+  local fell = kind == "fell"
+  if kind ~= "by" then by = nil end
   S.zombie[car] = true
-  S.when[car] = rc.mode.clock()
+  S.when[car] = when
   S.by[car] = by
   rc.setCar(car, ZOMBIE_CAR)
   rc.setCarTeam(car, 1)
@@ -269,10 +290,11 @@ local function infect(car, by, fell)
     rc.log(string.format("ZOMBIES: %.2f s: racer %d (%s) infected racer %d (%s)", S.when[car], by, name(by), car,
                          name(car)))
     rc.mode.message(car == S.player and T.youInfected or fmt(T.infected, name(by), name(car)), 3, GREEN)
-    attackSound(by, car)
+    attackSound(by, car, attack)
     thunder(car, "dog_attack")
   elseif fell then
     rc.log(string.format("ZOMBIES: %.2f s: racer %d (%s) fell out and turned", S.when[car], car, name(car)))
+    rc.mode.message(fmt(T.drowned, name(car)), 3, GREEN)
     S.by[car] = 0
     thunder(car, "dog_attack")
   else
@@ -291,7 +313,12 @@ end
 
 local cinematicStart                  -- (below)
 
-local function finish(zombiesWon)
+local function finish(zombiesWon)      -- the decision (the deciding machine only)
+  if S.over or not rc.mode.host() then return end
+  rc.mode.send("finish", zombiesWon)
+end
+
+local function applyFinish(zombiesWon)
   if S.over then return end
   S.over = true
   local res = {}
@@ -337,7 +364,7 @@ function onModeStart(info)
   S = {cars = info.cars, player = info.player, zombie = {}, when = {}, by = {}, thaw = {}, over = false,
        out = {}, outAt = {}, back = {},
        headStart = rc.setting("headStart", 10), contact = rc.setting("contact", 3),
-       limit = test > 0 and test or minutes * 60, started = false, next = 0}
+       limit = test > 0 and test or minutes * 60, started = false, next = 0, network = info.network}
   rc.log(string.format("ZOMBIES: round start on %s: %d car(s), head start %d s, time limit %d s", info.track,
                        info.cars, S.headStart, S.limit))
   for i = 1, S.cars do rc.mode.listText(i, T.survivor) end
@@ -351,14 +378,13 @@ end
 function onModeFrame(dt)
   if not S or S.over then return end
   local now = rc.mode.clock()
-  if not S.started then
-    if now < S.headStart then return end
-    S.started = true
+  if not S.started then                -- (the outbreak: the deciding machine tells when and who)
+    if not rc.mode.host() or now < S.headStart then return end
     local first = rc.setting("testZombie", 0)  -- (a test aid: patient zero's car, not on the Settings page)
     first = (first >= 1 and first <= S.cars) and first or math.random(1, S.cars)
+    rc.mode.send("outbreak", S.limit)
     infect(first, nil)
     if rc.setting("testCamera", false) then S.camera = first end
-    rc.mode.timer(S.limit)
   end
   if now < flashUntil then             -- (the flash: white, fading out over 0.3 s)
     local a = math.floor(110 * (flashUntil - now) / 0.3)
@@ -377,20 +403,21 @@ function onModeFrame(dt)
   for car, t in pairs(S.thaw) do
     if now >= t then rc.mode.freeze(car, false); S.thaw[car] = nil end
   end
-  if S.contact <= 0 then                 -- (threshold 0: every touch of the frame counts)
+  if S.contact <= 0 and rc.mode.host() then   -- (threshold 0: every touch of the frame counts)
     for _, z in ipairs(zombies()) do
       for _, c in ipairs(rc.car(z).contacts) do
         if not S.zombie[c] and not S.thaw[z] then infect(c, z) end
       end
     end
   end
-  if #survivors() == 0 then finish(true) return end
+  if rc.mode.host() and #survivors() == 0 then finish(true) return end
   heartbeat(now)
   if now >= S.next then S.next = now + 1.0; orders() end
 end
 
 function onCollision(a, b, strength, kind)
   if not S or S.over or not S.started or kind ~= "car" or rc.mode.active() ~= ID then return end
+  if not rc.mode.host() then return end  -- (a client's contacts reach the host's onCollision by themselves)
   if strength < S.contact then return end
   if S.zombie[a] and not S.zombie[b] and not S.thaw[a] then infect(b, a)
   elseif S.zombie[b] and not S.zombie[a] and not S.thaw[b] then infect(a, b) end
@@ -398,7 +425,28 @@ function onCollision(a, b, strength, kind)
 end
 
 function onModeTimer()
-  if S and not S.over then finish(false) end
+  if S and not S.over then finish(false) end   -- (finish decides on the deciding machine only)
+end
+
+-- what the deciding machine told (rc.mode.send): here on every machine, in a network race on the clients too
+function onModeEvent(what, a, b, c, d, e)
+  if not S or rc.mode.active() ~= ID then return end
+  if what == "outbreak" then
+    S.started = true
+    S.limit = a
+    rc.mode.timer(a)
+  elseif what == "infect" then
+    applyInfect(a, b, c, d, e)
+  elseif what == "out" then
+    if S.out[a] then return end
+    S.out[a] = true
+    S.outAt[a] = b
+    rc.mode.listText(a, T.out, 0x909090)
+    rc.mode.freeze(a, true)
+    rc.mode.message(fmt(T.fellOut, name(a)), 3, 0xffd040)
+  elseif what == "finish" then
+    applyFinish(a)
+  end
 end
 
 function onModeEnd()
@@ -412,22 +460,18 @@ end
 -- ---- the game puts no car back in this mode (respawn = false); the mode's rules instead ----
 -- a survivor who falls into deep water or off the track becomes a zombie there (fallRule "zombie") or is out
 -- ("out"); a zombie is put back on the nearest road point backDelay seconds later; a flip, the Reset key and a stuck
--- car are ignored: the game sets a car on its side upright where it is
+-- car are ignored: the game sets a car on its side upright where it is. (Called on the deciding machine only; in a
+-- network race rc.mode.respawnCar puts another player's car back through its own machine.)
 function onRespawnBlocked(car, reason)
   if not S or S.over or not S.started then return end
   rc.log(string.format("ZOMBIES: %.2f s: racer %d (%s): respawn blocked (%s)", rc.mode.clock(), car, name(car), reason))
   if reason ~= "water" and reason ~= "bounds" and reason ~= "zone" then return end
   if not S.zombie[car] and not S.out[car] then
     if rc.setting("fallRule", "zombie") == "out" then
-      S.out[car] = true
-      S.outAt[car] = rc.mode.clock()
-      rc.mode.listText(car, T.out, 0x909090)
-      rc.mode.freeze(car, true)
-      rc.mode.message(fmt(T.fellOut, name(car)), 3, 0xffd040)
+      rc.mode.send("out", car, rc.mode.clock())
       if #survivors() == 0 then finish(#zombies() > 0) end
       return
     end
-    rc.mode.message(fmt(T.drowned, name(car)), 3, GREEN)
     infect(car, nil, true)
   end
   if S.zombie[car] and not S.back[car] then
