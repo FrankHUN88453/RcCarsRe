@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.3, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.4, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.3.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.4.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -94,7 +94,11 @@ small body movements, which a drawn path does not have.
 (scaled to the cars: 1 unit = 1 m, an RC car is about 0.4 m long), drag props and textures from the asset library.
 
 - **What goes in**: every visible mesh object (modifiers applied), except the opponents' paths and the helpers.
-  Per object **Collision** (on: the cars drive on it and hit it; off: drawn only). Per material its image (the
+  Per object **Collision** (on: the cars drive on it and hit it; off: drawn only); per material **Surface**
+  (Auto: asphalt, or an imported game texture's own; sand, wet sand, dune sand, gravel, wood, stone, metal) - the
+  cars' rolling and landing sounds, and dune sand's lower grip. The **Surfaces** panel (under Track export) lists the
+  active object's materials with their surface (and what Auto becomes); *Set on N selected object(s)* gives every
+  material of the selected objects one surface. Per material its image (the
   Image Texture node on the Base Color); a material without one gets a small picture of its colour; a material that
   uses its alpha is drawn see-through. Vertex colours (the active colour attribute) are the baked light; without
   them the faces are lit fully. A game texture (an image named `rc_<name>` by the importer or the library) is
@@ -129,6 +133,11 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.4**: every exported texture has a surface (the car's sounds and the grip of dune sand go by it): with none
+  - as before - the car sounded as if falling while driving. A material's *Surface* (Track export panel) is Auto
+  (an imported game texture keeps its own; asphalt otherwise), or sand, wet sand, dune sand, gravel, wood,
+  asphalt, stone, metal - the Surfaces panel, also for many selected objects at once. An imported track's
+  collision-only meshes (invisible walls and floors) are exported again.
 - **0.1.3**: a finer collision grid, as the game's own levels have: 0.5 x 0.9 x 0.5 m voxels (were 1 x 1.5 x 1 m);
   the collidable meshes cut into 8 m tiles and more meshes allowed (up to 1200, beyond the template's room), so the
   grid's face bits stay small; the voxels' counts a byte each when they fit. A very large track (over 24 million

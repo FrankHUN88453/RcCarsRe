@@ -9,7 +9,7 @@ You need:
 
 - your own installed copy of RC Cars (DVD or Steam) and **RcCarsRe 0.2.0** or newer (it reads `.hdr` / `.exr`
   skies; [releases](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.3.zip` from the same
+- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.4.zip` from the same
   release (its source is in [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 The level file itself (`RCCarsDB\flat_test.sb`) is not in this repository: the add-on builds it on a copy of one of
@@ -48,7 +48,10 @@ What is in the scene:
    library*, then the library **RC Cars**): a model lands on the surface under the mouse, a texture becomes the
    material of the object it is dropped on.
 3. **Collision**: every visible mesh is driven on and hit. For decoration the cars should pass through, select the
-   object and switch off *Collision* in the *Track export* panel.
+   object and switch off *Collision* in the *Track export* panel. **Surface**: the *Surfaces* panel (under Track
+   export) sets what each material is to drive on - asphalt, sand, wet sand, dune sand (less grip), gravel, wood,
+   stone, metal; *Auto* keeps an imported game texture's own and makes anything else asphalt. The cars' rolling and
+   landing sounds go by it; *Set on N selected object(s)* sets it for many objects at once.
 4. **Checkpoints**: put the 3D cursor where one should be and press *Add checkpoint*; 1 is the start / finish line,
    the others follow in the order of the lap. At least 2, as many as you like (up to 256). Each one shows what the
    game shows: its marker on the ground and the hologram arrow over it (red at the start / finish line, green at

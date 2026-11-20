@@ -10,7 +10,7 @@ Ami kell hozzá:
 
 - a játék saját, telepített példánya (DVD vagy Steam) és a **RcCarsRe 0.2.0** vagy újabb (ez olvassa a `.hdr` /
   `.exr` égboltot; [kiadások](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.3.zip` ugyanabból a
+- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.4.zip` ugyanabból a
   kiadásból (a forrása: [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 Maga a pályafájl (`RCCarsDB\flat_test.sb`) nincs a repóban: az addon a játék egyik saját pályájának másolatára
@@ -49,7 +49,11 @@ Ami a jelenetben van:
    az **RC Cars** könyvtár): a modell az egér alatti felületre kerül, a textúra annak az objektumnak az anyaga lesz,
    amire ráejted.
 3. **Ütközés**: minden látható hálón lehet autózni, és neki lehet ütközni. Díszítéshez, amin az autók
-   átmennek, jelöld ki az objektumot, és a *Track export* panelen kapcsold ki a *Collision*-t.
+   átmennek, jelöld ki az objektumot, és a *Track export* panelen kapcsold ki a *Collision*-t. **Felület**: a
+   *Surfaces* panelen (a Track export alatt) anyagonként megadod, min autóznak rajta - aszfalt, homok, nedves homok,
+   dűne (kisebb tapadás), kavics, fa, kő, fém; az *Auto* az importált eredeti textúránál a sajátját tartja meg,
+   minden másnál aszfalt. Ettől függ az autók gördülési és földet érési hangja; a *Set on N selected object(s)*
+   egyszerre több objektumra állítja be.
 4. **Ellenőrzőpontok**: tedd a 3D kurzort a helyére, és nyomd meg az *Add checkpoint*-ot; az 1-es a rajt-cél
    vonal, a többi a kör sorrendjében jön. Legalább 2, és annyi, amennyit szeretnél (legfeljebb 256). Mindegyik úgy
    látszik, mint a játékban: a jelölője a talajon és fölötte a hologram nyíl (a rajt-cél vonalnál piros, a többinél

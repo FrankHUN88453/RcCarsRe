@@ -129,7 +129,18 @@ class Textures:
             img['rc_alpha'] = bool((px[3::4] < 0.98).any()) if img.channels == 4 else False
         if img is None:
             self.missing.add(name)
+        else:
+            img['rc_surface'] = self.surface(index)
         return img
+
+    def surface(self, index):
+        """the texture's surface bits in the level (its GLTX 0x3408's fifth dword: 0x10 wet sand, 0x20 sand, 0x40
+        dune sand, 0x80 wood, 0x200 gravel, 0x400 asphalt, 0x800 stone, 0x1000 metal - the car's sounds and the
+        dune sand's grip; gmdb.c gltxSurfaceBits)"""
+        g = self.gltx.get(index)
+        d = g.get(0x08, cc.DWORD) if g else None
+        w = d.dwords() if d else ()
+        return int(w[4]) if len(w) > 4 else 0
 
 
 def _multiply(nt, a, b, x):
@@ -410,6 +421,8 @@ def import_level(fs, path, cache_dir, collection_name=None):
         mats = ' '.join(m.name.lower() for m in me.materials if m)
         if mesh_flags(mesh) & FLAG_COLLISION or untextured(me):
             target = coll
+            if mesh_flags(mesh) & FLAG_COLLISION:
+                ob['rc_collision_only'] = True      # (an invisible wall / floor: the track export writes it back)
         elif any(k in mats for k in ('sky', 'cloud', 'backdrop', 'backgr')):
             target = sky
         else:

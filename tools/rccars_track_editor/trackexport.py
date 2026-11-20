@@ -31,6 +31,24 @@ GAME_LEVELS = {'beach_1', 'beach_2', 'beach_3', 'beach_4', 'country_1', 'country
 NAME_RE = re.compile(r'^[a-z0-9_]{1,24}$')
 ACP_RE = re.compile(r'(^|_)ACP\d+', re.I)
 SKY_EXT = ('.hdr', '.exr', '.png', '.dds')
+# the surfaces a material can be (Material.rc_surface): the GLTX surface bits (gmdb.c gltxSurfaceBits) - the car's
+# rolling / landing sounds by them, and dune sand's grip; with none (0) the car's sounds take it for being in the air
+SURFACES = [('AUTO', 'Auto', 'The surface of an imported game texture; asphalt for anything else', -1),
+            ('ASPHALT', 'Asphalt', '', 0x400), ('SAND', 'Sand', '', 0x20), ('WETSAND', 'Wet sand', '', 0x10),
+            ('DUNE', 'Dune sand', 'Deep sand: less grip', 0x40), ('GRAVEL', 'Gravel', '', 0x200),
+            ('WOOD', 'Wood', '', 0x80), ('STONE', 'Stone', '', 0x800), ('METAL', 'Metal', '', 0x1000),
+            ('NONE', 'None', 'No surface (the sky, decals): on it the cars sound as if in the air', 0)]
+SURFACE_BITS = {k: b for k, _, _, b in SURFACES}
+DEFAULT_SURFACE = 0x400
+
+
+def surface_bits(mat, img):
+    choice = getattr(mat, 'rc_surface', 'AUTO') if mat is not None else 'AUTO'
+    if choice != 'AUTO':
+        return SURFACE_BITS[choice]
+    if img is not None and img.get('rc_surface') is not None and int(img['rc_surface']):
+        return int(img['rc_surface'])
+    return DEFAULT_SURFACE
 
 
 def to_game(v):
@@ -101,6 +119,7 @@ class Textures:
     def __init__(self, fs, level):
         self.fs, self.level = fs, level
         self.names, self.index, self.files, self.alpha = [], {}, {}, {}
+        self.surf = {}                          # texture name -> its surface bits
 
     def _add(self, name):
         if name not in self.index:
@@ -137,6 +156,7 @@ class Textures:
                     img.pixels.foreach_get(px)
                     see = bool((px[3::4] < 0.5).mean() > 0.005)
             self.alpha[key] = (name, see)
+            self.surf.setdefault(name, surface_bits(mat, img))
             return self._add(name), see
         col = material_colour(mat)
         key = ('col', tuple(round(c, 3) for c in col))
@@ -145,7 +165,11 @@ class Textures:
         name = self._unique('%s_col_%02x%02x%02x' % ((self.level,) + tuple(int(c * 255) for c in col[:3])))
         self.files[name] = ('colour', col)
         self.alpha[key] = (name, False)
+        self.surf.setdefault(name, surface_bits(mat, None))
         return self._add(name), False
+
+    def surfaces(self):
+        return [self.surf.get(n, 0) for n in self.names]
 
     def sky(self, path):
         name = 'sky_%s' % self.level
@@ -179,7 +203,10 @@ class Textures:
 def track_objects(context):
     out = []
     for ob in context.scene.objects:
-        if ob.type != 'MESH' or not ob.visible_get() or ob.hide_render:
+        if ob.type != 'MESH':
+            continue
+        # (an imported track's collision-only meshes - invisible walls, floors, ramps - go back in, hidden or not)
+        if not ob.get('rc_collision_only') and (not ob.visible_get() or ob.hide_render):
             continue
         if ob.rc_npc.is_path or ob.rc_npc.is_start or ob.rc_track.checkpoint or ob.get(cpfx.FX):
             continue
@@ -235,6 +262,9 @@ def object_meshes(context, ob, tex, groups):
             point = ca.domain == 'POINT'
         slots = [ms.material for ms in ob.material_slots] or [None]
         collide = ob.rc_track.collide
+        coll_only = bool(ob.get('rc_collision_only'))
+        if coll_only:
+            collide = True
         # the water: an imported track's (rc_water: its record, moved by the game's offset) or any object with "more"
         # in its name - a mesh of its own named after it (the game's water takes the top-level objects with "more"),
         # not collidable, at its rest height (the import's offset taken back: the game adds it again)
@@ -249,7 +279,11 @@ def object_meshes(context, ob, tex, groups):
             per_mat.setdefault(int(tm[k]) if tm[k] < len(slots) else 0, []).append(k)
         for mi, tris in per_mat.items():
             gid, see = tex.of_material(slots[mi])
-            g = groups.setdefault((gid, see, collide, water), lw.Mesh(water, see and not water, collide))
+            g = groups.get((gid, see, collide, water, coll_only))
+            if g is None:
+                g = groups[(gid, see, collide, water, coll_only)] = lw.Mesh(water, see and not water and not coll_only,
+                                                                            collide)
+                g.coll_only = coll_only
             out = []
             for k in tris:
                 corners = []
@@ -323,7 +357,7 @@ def export(context, fs, mods_dir, mod, level, name, description, sky_path, sky_r
     sp = to_game(start.matrix_world.translation)
     place = (sp[0], sp[1] + 0.4, sp[2])
     cp = [to_game(o.matrix_world.translation) for o in cps]
-    data, info = lw.build_level(fs.read(TEMPLATE[0]), TEMPLATE[1], level, meshes, tex.names,
+    data, info = lw.build_level(fs.read(TEMPLATE[0]), TEMPLATE[1], level, meshes, list(zip(tex.names, tex.surfaces())),
                                 [(p[0], p[1] + 0.3, p[2]) for p in cp], place, yaw)
     os.makedirs(os.path.join(root, 'RCCarsDB'), exist_ok=True)
     with open(os.path.join(root, 'RCCarsDB', level + '.sb'), 'wb') as f:

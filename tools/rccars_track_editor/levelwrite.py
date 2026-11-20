@@ -21,6 +21,7 @@ CELL = (0.5, 0.9, 0.5)              # the collision voxels' size, metres (the ga
 CELL_BUDGET = 24_000_000            # voxels at most (larger tracks get wider cells)
 MAX_CHECKPOINTS = 256               # (RcCarsRe's race logic: "Too many checkpoints" above it; the original game: 8)
 FLAG_BLEND = 0x1000
+FLAG_COLLISION = 0x800              # (a collision-only mesh: never drawn)
 
 
 class Raw:
@@ -55,6 +56,7 @@ class Mesh:
     def __init__(self, name=None, blended=False, collide=True):
         self.v, self.vi, self.t, self.ti, self.f, self.c = [], {}, [], {}, [], []
         self.name, self.blended, self.collide = name, blended, collide
+        self.coll_only = False          # (drawn never: the database's flag 0x800, an invisible wall / floor)
         self.id = 0
 
     def add(self, tris, gltx):
@@ -100,6 +102,7 @@ class Mesh:
 def subset(me, faces):
     """a new mesh of some of the mesh's faces (their vertices and coordinates renumbered)"""
     out = Mesh(me.name, me.blended, me.collide)
+    out.coll_only = me.coll_only
     vmap, tmap = {}, {}
     for fi in faces:
         ids, nrs, fn, g, uvs = me.f[fi]
@@ -239,7 +242,7 @@ def rebuild_mesh(c, p):
         elif tid == 0x08 and k.kind == cc.DWORD and 'newid' in p:
             w = list(k.dwords())
             w[0] = p['newid']
-            w[3] = (w[3] & ~FLAG_BLEND) | p.get('flags', 0)
+            w[3] = (w[3] & ~(FLAG_BLEND | FLAG_COLLISION)) | p.get('flags', 0)
             out.append(Raw(k.tag, struct.pack('<%dI' % len(w), *w), k.extra))
         else:
             out.append(k)
@@ -268,7 +271,7 @@ def emit(c, out, base, plan, override=None):
         out += c.extra
     if p is not None and 'gltx' in p:
         # the template's first texture object, once a texture: (name, id)
-        for vi, (vname, vindex) in enumerate(p['gltx']):
+        for vi, (vname, vindex, vsurf) in enumerate(p['gltx']):
             if vi:
                 struct.pack_into('<I', out, pos + 2, base + len(out))
                 pos = len(out)
@@ -281,6 +284,8 @@ def emit(c, out, base, plan, override=None):
                 elif k.kind == cc.DWORD and k.id == 0x08:
                     w = list(k.dwords())
                     w[0] = vindex
+                    if len(w) > 4:
+                        w[4] = vsurf            # (the surface bits: gmdb.c gltxSurfaceBits)
                     write([Raw(k.tag, struct.pack('<%dI' % len(w), *w), k.extra)], out, base)
                 elif k.kind == cc.OBJ:
                     continue                    # (a texture object's own sub-objects: none in the levels)
@@ -437,7 +442,8 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     # ---- the textures: the template's texture 0 written once a name, the others left out
     gl = kids(model, 'GLTX')
     base = [k for k in gl if k.get(0x08, cc.DWORD).dwords()[0] == 0][0]
-    plan[id(base)] = {'gltx': [(n, i) for i, n in enumerate(texnames)]}
+    texnames = [t if isinstance(t, tuple) else (t, 0) for t in texnames]
+    plan[id(base)] = {'gltx': [(n, i, sb) for i, (n, sb) in enumerate(texnames)]}
     for k in gl:
         if k is not base:
             plan[id(k)] = {'skip': True}
@@ -461,7 +467,7 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
         # 0 the root, 1 .. ours; when there are more of ours than containers, copies of the first one are added)
         me.id = num + 1
         mp = {'me': me, 'trs': ident, 'below': me.v, 'newid': me.id,
-              'flags': FLAG_BLEND if me.blended else 0, 'name': me.name}
+              'flags': (FLAG_BLEND if me.blended else 0) | (FLAG_COLLISION if me.coll_only else 0), 'name': me.name}
         allv.extend(me.v)
         if num < len(conts):
             k = conts[num]

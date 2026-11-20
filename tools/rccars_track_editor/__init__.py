@@ -695,9 +695,65 @@ class RC_PT_track(bpy.types.Panel):
             col.label(text=STATE['track'][:60])
 
 
+SURFACE_ITEMS = [(k, n, d, i) for i, (k, n, d, b) in enumerate(trackexport.SURFACES)]
+SURFACE_NAME = {b: n for k, n, d, b in trackexport.SURFACES if k != 'AUTO'}
+
+
+class RC_OT_set_surface(bpy.types.Operator):
+    bl_idname = 'rccars.set_surface'
+    bl_label = 'Set surface'
+    bl_description = 'The surface of every material of the selected objects'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    surface: EnumProperty(name='Surface', items=SURFACE_ITEMS)
+
+    def execute(self, context):
+        mats = {s.material for o in context.selected_objects if o.type == 'MESH' for s in o.material_slots if s.material}
+        for m in mats:
+            m.rc_surface = self.surface
+        self.report({'INFO'}, '%d material(s): %s' % (len(mats), self.surface.lower()))
+        return {'FINISHED'}
+
+
+class RC_PT_surfaces(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'RC Cars'
+    bl_label = 'Surfaces'
+
+    def draw(self, context):
+        col = self.layout.column()
+        col.label(text='What the cars drive on (sounds, dune grip)', icon='INFO')
+        ob = context.active_object
+        if ob is None or ob.type != 'MESH':
+            col.label(text='Select a mesh object')
+        elif not ob.material_slots:
+            col.label(text='%s has no material: asphalt' % ob.name)
+        else:
+            box = col.box()
+            box.label(text=ob.name, icon='OBJECT_DATA')
+            for slot in ob.material_slots:
+                m = slot.material
+                if m is None:
+                    continue
+                row = box.row(align=True)
+                row.label(text=m.name, icon='MATERIAL')
+                row.prop(m, 'rc_surface', text='')
+                if m.rc_surface == 'AUTO':
+                    img = trackexport.material_image(m)[0]
+                    bits = trackexport.surface_bits(m, img)
+                    row.label(text='= %s' % SURFACE_NAME.get(bits, hex(bits)))
+        n = sum(1 for o in context.selected_objects if o.type == 'MESH')
+        row = col.row()
+        row.enabled = n > 0
+        row.operator_menu_enum('rccars.set_surface', 'surface', text='Set on %d selected object(s)' % n,
+                               icon='BRUSH_DATA')
+
+
 CLASSES = (RCAssetItem, RCNpcProps, RCTrackProps, RCTrackEditorPrefs, RC_OT_scan, RC_OT_import_asset, RC_OT_new_path,
            RC_OT_add_start, RC_OT_import_paths, RC_OT_export_paths, RC_OT_add_checkpoint, RC_OT_checkpoint_fx, RC_OT_preview_sky,
-           RC_OT_export_track, RC_OT_build_library, RC_UL_assets, RC_PT_game, RC_PT_assets, RC_PT_npc, RC_PT_track)
+           RC_OT_export_track, RC_OT_set_surface, RC_OT_build_library, RC_UL_assets, RC_PT_game, RC_PT_assets, RC_PT_npc,
+           RC_PT_track, RC_PT_surfaces)
 
 
 def _category_update(self, context):
@@ -720,6 +776,10 @@ def register():
                                                    description='How high over the drawn path the car\'s middle goes')
     bpy.types.Scene.rc_npc_ini = BoolProperty(name='Write the AI layout script', default=True)
     bpy.types.Object.rc_track = PointerProperty(type=RCTrackProps)
+    bpy.types.Material.rc_surface = EnumProperty(
+        name='Surface', default='AUTO',
+        items=[(k, n, d, i) for i, (k, n, d, b) in enumerate(trackexport.SURFACES)],
+        description='What the cars drive on there: their rolling and landing sounds, and the grip of dune sand')
     bpy.types.Scene.rc_level = StringProperty(name='Level', default='my_track',
                                               description='The level\'s file name (RCCarsDB\\<level>.sb) and the track\'s '
                                                           'id: small letters, digits, _')
@@ -739,6 +799,7 @@ def unregister():
         delattr(bpy.types.WindowManager, attr)
     del bpy.types.Object.rc_npc
     del bpy.types.Object.rc_track
+    del bpy.types.Material.rc_surface
     for attr in ('rc_npc_mod', 'rc_npc_folder', 'rc_ride_height', 'rc_npc_ini', 'rc_level', 'rc_track_name',
                  'rc_track_desc', 'rc_sky', 'rc_sky_radius'):
         delattr(bpy.types.Scene, attr)
