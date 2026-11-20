@@ -20,6 +20,10 @@ from . import chunks as cc
 CELL = (0.5, 0.9, 0.5)              # the collision voxels' size, metres (the game's levels: 0.5 .. 0.67 across, 0.92 high)
 CELL_BUDGET = 24_000_000            # voxels at most (larger tracks get wider cells)
 MAX_CHECKPOINTS = 256               # (RcCarsRe's race logic: "Too many checkpoints" above it; the original game: 8)
+# a checkpoint's corridors: its sub-marks' plus the one to the next checkpoint, in a table of 32 (racelogic.c RACECP
+# edge[32], the original's 0x14acb60 alike): 32 sub-marks overran it with the closing corridor and wrote over the
+# checkpoint's own record (a player's 2-checkpoint track: "cp_2 .. -1141262424 corridor(s)", cp_2 never passed)
+MAX_SUBMARKS = 31
 FLAG_BLEND = 0x1000
 FLAG_COLLISION = 0x800              # (a collision-only mesh: never drawn)
 
@@ -516,7 +520,7 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     start: the player's place (x, y, z), yaw in degrees; marks: [(name, (x, y, z), (rx, ry, rz) degrees)] - MARK
     objects the game's effects find by name anywhere in the model (WATER_FALL_<n>, water_splash_<n> ..), written
     after the checkpoints; corridors: per checkpoint the points of its corridor towards the next one (its sub-marks,
-    at most 32 each), None: straight; cp_keys: the checkpoint marks' corridor sizes (width / height / expand:
+    at most 31 each), None: straight; cp_keys: the checkpoint marks' corridor sizes (width / height / expand:
     half sizes, metres; the game's levels: width 4 .. 10, expand 3)"""
     if not texnames:
         raise ValueError('no textures')
@@ -583,7 +587,7 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
         elif k.cls == 'FOLD' and k.name() == 'Checkpoints':
             tm = kids(k, 'MARK')[0]
             plan[id(k)] = {'children': [cp_mark(tm, 'cp_%d' % (i + 1), p, list(cp_keys),
-                                                (corridors[i] if corridors and i < len(corridors) else ())[:32])
+                                                (corridors[i] if corridors and i < len(corridors) else ())[:MAX_SUBMARKS])
                                         for i, p in enumerate(checkpoints)] +
                                        [copy_with(tm, {0x03: name.encode('latin1') + b'\0',
                                                        0x0b: struct.pack('<9f', p[0], p[1], p[2], 1, 1, 1, *r)})

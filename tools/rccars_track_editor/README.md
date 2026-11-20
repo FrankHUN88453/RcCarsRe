@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.7, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.8, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.7.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.8.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -133,6 +133,9 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.8**: a checkpoint gets at most 31 corridor marks: the game keeps 32 corridors a checkpoint, the last one's
+  closing corridor included, and with 32 marks the long way back to checkpoint 1 on a track of few checkpoints
+  overran that table - the checkpoint could never be passed (a player's 2-checkpoint track).
 - **0.1.7**: the export refuses two checkpoints with the same number (a Shift+D copy keeps the number) and hidden
   checkpoints: both counted in the game in their own places, so the race waited for a checkpoint the player could
   not see while the marker in sight was another one ("can't get second checkpoint at any height or position").

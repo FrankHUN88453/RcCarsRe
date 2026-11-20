@@ -278,7 +278,7 @@ def track_objects(context):
 # (racelogic.c 0x4eaa40) and the corridors between them hold the car within +- 1 m of their line (0x4ebcb0), so
 # both go on the ground at these heights wherever the empty is.
 CP_LIFT, START_LIFT = 0.3, 0.4
-CORRIDOR_STEP = 6.0                     # (metres between a corridor's sub-marks; at most 32 a checkpoint)
+CORRIDOR_STEP = 6.0                     # (metres between a corridor's sub-marks; at most 31 a checkpoint)
 
 
 class Ground:
@@ -391,7 +391,7 @@ def corridors(context, ground, cps):
         else:
             seg = [a, b]
         length = sum((q - p_).length for p_, q in zip(seg, seg[1:]))
-        step = max(CORRIDOR_STEP, length / 33.0)
+        step = max(CORRIDOR_STEP, length / 32.0)       # (at most 31: see lw.MAX_SUBMARKS)
         out.append([on_track(ground, q, CP_LIFT)[0] for q in resample(seg, step)])
     return out
 
