@@ -92,8 +92,15 @@ small body movements, which a drawn path does not have.
   uses its alpha is drawn see-through. Vertex colours (the active colour attribute) are the baked light; without
   them the faces are lit fully. A game texture (an image named `rc_<name>` by the importer or the library) is
   referenced by its name, every other image is written as a PNG.
-- **Checkpoints**: *Add checkpoint* puts a numbered sphere at the 3D cursor; 1 is the start / finish line, then in
-  order around the lap, at least 2, at most 8 (the game's limit).
+- **Checkpoints**: *Add checkpoint* puts a numbered checkpoint at the 3D cursor; 1 is the start / finish line, then
+  in order around the lap; at least 2, up to 256 (RcCarsRe 0.2.0; the original game takes 8).
+  Each shows what the game shows: its marker on the ground (the game's `icon_start` / `icon_chp_1`) and the hologram
+  arrow over it (red at the start / finish line, green at the others; in the game it stands over the next checkpoint
+  and blinks, here its glow pulses when the animation plays). Turn a checkpoint about Z to turn its marker;
+  *Refresh checkpoints* makes the markers again (after renumbering, or in an older scene). The export writes each
+  marker into the level (a mesh `..._ACP<n>`), so the game lights them as on its own tracks.
+  Put them in the middle of the way: **a car passes a checkpoint only within 1.6 m of its centre** (an opponent
+  within 2.8 m) - the export warns when an opponent's path misses one.
 - **Player start**: the NPC panel's *Player start* arrow (needed).
 - **Sky**: an equirectangular picture - `.hdr` or `.exr` (high dynamic range: the game picks the exposure itself;
   EXR with ZIP, ZIPS, RLE or no compression), or `.png` / `.dds`. It goes on a dome of the given radius around the

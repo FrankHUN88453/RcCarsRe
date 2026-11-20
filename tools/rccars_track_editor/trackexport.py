@@ -6,7 +6,9 @@ What goes in: every visible mesh object (modifiers applied) but the opponents' p
 Collision (default on; off: drawn only, the cars pass through). Per material: its image (the Image Texture node on the
 Base Color, else the first one; none: a small picture of its colour); see-through when its alpha is used. A game
 texture (an image named rc_<name> by the importer / the asset library) keeps its name and is not copied.
-Checkpoints: empties with a checkpoint number (1 = the start / finish line, at most 8, in order around the lap).
+Checkpoints: empties with a checkpoint number (1 = the start / finish line, then in order around the lap, up to 256);
+each gets the game's marker on the ground (a mesh ..._ACP<n>: the game lights the next one and stands its hologram
+arrow over it).
 The player's start: the NPC tool's "RC player start" arrow. The sky: a picture (.hdr, .exr, .png, .dds) on a dome
 around the track. Blender (x, y, z) = game (-x, z, y)."""
 import math
@@ -20,6 +22,7 @@ import bpy
 import numpy as np
 from mathutils import Vector
 
+from . import cpfx
 from . import levelwrite as lw
 
 TEMPLATE = ('RCCarsDB\\urban_1.sb', 'urban_1')
@@ -174,7 +177,7 @@ def track_objects(context):
     for ob in context.scene.objects:
         if ob.type != 'MESH' or not ob.visible_get() or ob.hide_render:
             continue
-        if ob.rc_npc.is_path or ob.rc_npc.is_start or ob.rc_track.checkpoint:
+        if ob.rc_npc.is_path or ob.rc_npc.is_start or ob.rc_track.checkpoint or ob.get(cpfx.FX):
             continue
         out.append(ob)
     return out
@@ -287,6 +290,18 @@ def export(context, fs, mods_dir, mod, level, name, description, sky_path, sky_r
         centre = ((lo[0] + hi[0]) / 2, lo[1], (lo[2] + hi[2]) / 2)
         radius = max(sky_radius, float(np.linalg.norm(hi - lo)) * 0.75)
         meshes.append(lw.sky_dome(radius, centre, tex.sky(sky_path)))
+    # the checkpoints' markers: the game's own textures, a quad each, named ..._ACP<n> (cpmark.c of RcCarsRe and the
+    # original look for that name part)
+    for i, o in enumerate(cps):
+        tname = 'icon_start' if i == 0 else 'icon_chp_1'
+        if fs.texture(tname)[0] is None:
+            continue
+        gid = tex._add(tname)
+        pts, uvs = cpfx.marker_corners(o.matrix_world)
+        corners = [(to_game(p), (u, 1.0 - v), (0.0, 1.0, 0.0), 0xffffffff) for p, (u, v) in zip(pts, uvs)]
+        mk = lw.Mesh('NOSHDW_LM0_NC_TRANSPB_ACP%d' % (i + 1), blended=True, collide=False)
+        mk.add([(corners[0], corners[1], corners[2]), (corners[0], corners[2], corners[3])], gid)
+        meshes.append(mk)
     fwd = start.matrix_world.to_3x3() @ Vector((0, 0, 1))     # (the arrow: the empty's local Z)
     g = to_game(fwd)
     yaw = math.degrees(math.atan2(g[0], g[2]))

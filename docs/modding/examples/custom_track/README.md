@@ -1,7 +1,7 @@
 # Custom track (example)
 
-A complete custom track made in Blender: a flat 200 x 200 m field with a checkered texture, four checkpoints, the
-player's start, one AI opponent and an HDRI sky. Use it to see how a track is put together, then make your own.
+A complete custom track made in Blender: a flat 200 x 200 m field with a checkered texture, twelve checkpoints,
+the player's start, one AI opponent and an HDRI sky. Use it to see how a track is put together, then make your own.
 
 ![The example track in the game](preview.png)
 
@@ -22,7 +22,8 @@ the game's own levels, read from your installation, so you make it on your PC (s
 2. In the add-on's preferences (or the 3D View's sidebar, N, tab **RC Cars** > *Game*) set the **Game folder** (the
    folder with `RCCARS.exe`) and press **Scan game folder**. If your mods are not in `<game folder>\mods`, set the
    **Mods folder** too (the `mods` folder next to `RcCarsRe.exe`).
-3. Open `flat_test.blend` from this folder (keep `sky.exr` and `error.png` next to it).
+3. Open `flat_test.blend` from this folder (keep `sky.exr` and `error.png` next to it). Press *Track export* >
+   **Refresh checkpoints**: the checkpoints get their markers and hologram arrows, made from your game's textures.
 4. Sidebar > **RC Cars** > *Track export* > **Export track to mod**. It writes the mod `mods\flat_test\`.
 5. Start `RcCarsRe.exe`: *Quick race* > the track **Flat test** (after the game's ten tracks).
 
@@ -31,9 +32,9 @@ What is in the scene:
 | Object | What it is |
 |---|---|
 | `Ground` | the track: a 200 m grid (50 x 50 squares), material `error` with `error.png`, UVs scaled to repeat it every 4 m |
-| `RC checkpoint 1` .. `4` | sphere empties on a 40 m circle; 1 is the start / finish line, then anticlockwise |
+| `RC checkpoint 1` .. `12` | on a 40 m circle; 1 is the start / finish line (red arrow), then anticlockwise (green arrows) |
 | `RC player start` | the arrow empty: the player's car starts there, facing along the arrow |
-| `buggy1` | the opponent's path: a closed curve; its first point is the car's place on the starting grid |
+| `buggy1` | the opponent's path: a closed curve over the checkpoints; its first point is the car's place on the starting grid |
 | the scene's settings | Level `flat_test`, Name `Flat test`, the sky `//sky.exr` (radius 500 m), the mod `flat_test` |
 
 ## Make your own track
@@ -49,8 +50,13 @@ What is in the scene:
 3. **Collision**: every visible mesh is driven on and hit. For decoration the cars should pass through, select the
    object and switch off *Collision* in the *Track export* panel.
 4. **Checkpoints**: put the 3D cursor where one should be and press *Add checkpoint*; 1 is the start / finish line,
-   the others follow in the order of the lap. At least 2, at most 8. The race counts a lap when the car passes them
-   in order.
+   the others follow in the order of the lap. At least 2, as many as you like (up to 256). Each one shows what the
+   game shows: its marker on the ground and the hologram arrow over it (red at the start / finish line, green at
+   the others; in the game it stands over the next checkpoint and blinks - play the animation to see it pulse).
+   Rotate a checkpoint about Z to turn its marker; *Refresh checkpoints* makes them again after you renumber them.
+   The race counts a lap when the car passes them in order, and **a car passes a checkpoint only within 1.6 m of
+   its centre** (an opponent within 2.8 m): put them in the middle of the way, and let the opponents' paths run over
+   them - the export warns when a path misses one.
 5. **Start**: *Player start* (in the *NPC paths* panel or the *Track export* panel) puts the arrow at the 3D cursor;
    rotate it about Z so the arrow points along the way, a few metres before checkpoint 1.
 6. **Opponents** (optional): *NPC paths* > *New opponent path* makes a closed curve; move its points along the way
@@ -72,7 +78,7 @@ Into `<mods folder>\<Mod>\`:
 
 | File | What |
 |---|---|
-| `RCCarsDB\<level>.sb` | the level: your meshes, the collision grid, the checkpoints and the start, in the game's own format (built on a copy of the game's `urban_1.sb`; its people, sounds and props are left out). The collidable meshes are cut into square tiles (16 m and up) to keep the collision grid small |
+| `RCCarsDB\<level>.sb` | the level: your meshes, the collision grid, the checkpoints with their markers and the start, in the game's own format (built on a copy of the game's `urban_1.sb`; its people, sounds and props are left out). The collidable meshes are cut into square tiles (16 m and up) to keep the collision grid small |
 | `Textures\<level>_<image>.png` | the materials' images (a texture of the game itself is used by its name, not copied) |
 | `Textures\sky_<level>.exr` (or `.hdr` / `.png` / `.dds`) | the sky |
 | `scripts\track_<level>.lua` | `rc.registerTrack{...}`: every `.lua` in a mod's `scripts` folder runs when the game starts, so the track is on the Quick race page |
@@ -94,7 +100,7 @@ Run the export again after every change; restart the game to see it.
 
 | File | |
 |---|---|
-| `flat_test.blend` | the Blender scene (Blender 4.2+, the add-on installed) |
+| `flat_test.blend` | the Blender scene (Blender 4.2+, the add-on installed; the checkpoints' markers and arrows come from your game: *Refresh checkpoints*) |
 | `error.png` | the ground's texture (also packed into the .blend) |
 | `sky.exr` | the HDRI sky, made with `make_sky.py` (Blender's physical sky, rendered as a panorama) |
 | `make_sky.py` | makes an HDRI sky as `.hdr` and `.exr` |

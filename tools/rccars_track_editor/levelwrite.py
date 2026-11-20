@@ -18,7 +18,7 @@ import numpy as np
 from . import chunks as cc
 
 CELL = (1.0, 1.5, 1.0)              # the collision voxels' size, metres
-MAX_CHECKPOINTS = 8                 # (the game's race logic: "Too many checkpoints" above it)
+MAX_CHECKPOINTS = 256               # (RcCarsRe's race logic: "Too many checkpoints" above it; the original game: 8)
 FLAG_BLEND = 0x1000
 
 
@@ -236,6 +236,8 @@ def rebuild_mesh(c, p):
             out.append(Raw(k.tag, struct.pack('<%dI' % len(w), *w), k.extra))
         else:
             out.append(k)
+    for k, pp in p.get('extra', ()):          # (more containers than the template has: copies of one)
+        out.append(('objcopy', k, pp))
     return out
 
 
@@ -249,8 +251,8 @@ def copy_with(k, raws):
     return ('copy', k, ch)
 
 
-def emit(c, out, base, plan):
-    p = plan.get(id(c))
+def emit(c, out, base, plan, override=None):
+    p = override if override is not None else plan.get(id(c))
     if p is not None and p.get('skip'):
         return
     pos = len(out)
@@ -303,6 +305,8 @@ def emit(c, out, base, plan):
 def emit_item(k, out, base, plan):
     if isinstance(k, tuple) and k[0] == 'obj':
         emit(k[1], out, base, plan)
+    elif isinstance(k, tuple) and k[0] == 'objcopy':
+        emit(k[1], out, base, plan, k[2])
     elif isinstance(k, tuple) and k[0] == 'faces':
         p2 = len(out)
         out += struct.pack('<HI', k[1], 0) + struct.pack('<I', len(k[2]))
@@ -430,27 +434,32 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
         if f is not None and (f.count or 0) > 0 and k.get(0x13) is not None and tuple(w[2:5]) == (0x4001, 0x100060, 0):
             conts.append(k)
     meshes, tile = fit([m for m in meshes if m.f], len(conts))
-    if len(meshes) > len(conts):
-        raise ValueError('%d meshes, the template has room for %d: join objects of the same material' % (
-            len(meshes), len(conts)))
     ident = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
     for k in kids(root):
         if k.cls != 'MESH':
             plan[id(k)] = {'skip': True}
     used = set()
     allv = []
-    for num, (k, me) in enumerate(zip(conts, meshes)):
+    extra = []
+    for num, me in enumerate(meshes):
+        # (the scene's mesh table has a place for each MESH object of the model and a mesh is entered by its id:
+        # 0 the root, 1 .. ours; when there are more of ours than containers, copies of the first one are added)
         me.id = num + 1
-        plan[id(k)] = {'me': me, 'trs': ident, 'below': me.v, 'newid': me.id,
-                       'flags': FLAG_BLEND if me.blended else 0, 'name': me.name}
-        used.add(id(k))
+        mp = {'me': me, 'trs': ident, 'below': me.v, 'newid': me.id,
+              'flags': FLAG_BLEND if me.blended else 0, 'name': me.name}
         allv.extend(me.v)
-        for sub in kids(k):
-            plan[id(sub)] = {'skip': True}
+        if num < len(conts):
+            k = conts[num]
+            plan[id(k)] = mp
+            used.add(id(k))
+            for sub in kids(k):
+                plan[id(sub)] = {'skip': True}
+        else:
+            extra.append((conts[0], mp))
     for k in kids(root, 'MESH'):
         if id(k) not in used:
             plan[id(k)] = {'skip': True}
-    plan[id(root)] = {'trs': ident, 'below': allv, 'newid': 0}
+    plan[id(root)] = {'trs': ident, 'below': allv, 'newid': 0, 'extra': extra}
     # ---- the collision grid
     coll = kids(model, 'COLL')[0]
     rep, ngrid = collision_grid(meshes)
@@ -478,4 +487,5 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     if not back:
         raise ValueError('the written level does not parse')
     return bytes(out), {'meshes': len(meshes), 'faces': sum(len(m.f) for m in meshes),
-                        'textures': len(texnames), 'grid': ngrid, 'room': len(conts), 'tile': tile}
+                        'textures': len(texnames), 'grid': ngrid, 'room': len(conts), 'tile': tile,
+                        'added': len(extra)}

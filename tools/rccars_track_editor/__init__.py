@@ -20,7 +20,7 @@ from mathutils import Vector
 from bpy.props import (BoolProperty, CollectionProperty, EnumProperty, FloatProperty, IntProperty, PointerProperty,
                        StringProperty)
 
-from . import catalog, gamefs, library, npc, sbimport, trackexport
+from . import catalog, cpfx, gamefs, library, npc, sbimport, trackexport
 
 STATE = {'fs': None, 'assets': [], 'status': 'not scanned'}
 
@@ -133,7 +133,7 @@ class RCNpcProps(bpy.types.PropertyGroup):
 class RCTrackProps(bpy.types.PropertyGroup):
     collide: BoolProperty(name='Collision', default=True,
                           description='The cars drive on it and hit it (off: drawn only, the cars pass through)')
-    checkpoint: IntProperty(name='Checkpoint', default=0, min=0, max=8,
+    checkpoint: IntProperty(name='Checkpoint', default=0, min=0, max=256,
                             description='This empty is checkpoint N (1 = the start / finish line; 0 = not one)')
 
 
@@ -445,16 +445,16 @@ class RC_OT_export_paths(bpy.types.Operator):
 class RC_OT_add_checkpoint(bpy.types.Operator):
     bl_idname = 'rccars.add_checkpoint'
     bl_label = 'Add checkpoint'
-    bl_description = ('A checkpoint at the 3D cursor (a sphere empty, numbered in order: 1 is the start / finish line; '
-                      'at most 8, around the lap)')
+    bl_description = ('A checkpoint at the 3D cursor, numbered in order around the lap (1 is the start / finish line), '
+                      'with the marker and hologram arrow of the game; turn it about Z to turn its marker')
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         cps = trackexport.checkpoints(context)
-        if len(cps) >= 8:
-            self.report({'ERROR'}, 'The game takes at most 8 checkpoints')
+        if len(cps) >= 256:
+            self.report({'ERROR'}, 'The game takes at most 256 checkpoints')
             return {'CANCELLED'}
-        n = len(cps) + 1
+        n = max([o.rc_track.checkpoint for o in cps] + [0]) + 1
         ob = bpy.data.objects.new('RC checkpoint %d' % n, None)
         ob.empty_display_type = 'SPHERE'
         ob.empty_display_size = 1.5
@@ -462,10 +462,28 @@ class RC_OT_add_checkpoint(bpy.types.Operator):
         ob.rc_track.checkpoint = n
         ob.show_name = True
         npc_collection(context).objects.link(ob)
+        if cps:                                 # (turned along the way from the previous one)
+            d = ob.location - cps[-1].location
+            if d.length > 1e-3:
+                ob.rotation_euler = (0.0, 0.0, math.atan2(d.y, d.x) - math.pi / 2)
+        cpfx.make_fx(context, ob, STATE['fs'])
         for o in context.selected_objects:
             o.select_set(False)
         ob.select_set(True)
         context.view_layer.objects.active = ob
+        return {'FINISHED'}
+
+
+class RC_OT_checkpoint_fx(bpy.types.Operator):
+    bl_idname = 'rccars.checkpoint_fx'
+    bl_label = 'Refresh checkpoints'
+    bl_description = ('Make the markers and hologram arrows of every checkpoint again (after renumbering them, or in '
+                      'a scene made before; the textures of the game come from the scanned game folder)')
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        n = cpfx.refresh_all(context, fs_or_scan(context))
+        self.report({'INFO'}, '%d checkpoint(s)' % n)
         return {'FINISHED'}
 
 
@@ -522,8 +540,25 @@ class RC_OT_export_track(bpy.types.Operator):
         except (ValueError, OSError) as ex:
             self.report({'ERROR'}, str(ex))
             return {'CANCELLED'}
+        # (a car passes a checkpoint only within 1.6 m of it - an AI car 2.88 m: a path that misses one never ends
+        # its lap; the game's own check, racelogic 0x4eaa40)
+        cps = [npc.to_game(o.matrix_world.translation) for o in trackexport.checkpoints(context)]
+        miss = []
+        for ob in sc.objects:
+            if ob.rc_npc.is_path and ob.type == 'CURVE' and ob.data.splines:
+                pts = np.array(curve_points(ob)[0], dtype=float)
+                if len(pts) > 1:            # (the path sampled every 0.2 m at most)
+                    seg = [pts[i] + (pts[i + 1] - pts[i]) * t for i in range(len(pts) - 1)
+                           for t in np.linspace(0, 1, max(2, int(np.linalg.norm(pts[i + 1] - pts[i]) / 0.2) + 1))]
+                    P = np.array(seg)
+                    for k, c in enumerate(cps):
+                        d = float(np.min(np.linalg.norm(P - np.array(c), axis=1)))
+                        if d > 2.5:
+                            miss.append('%s misses checkpoint %d by %.1f m' % (ob.name, k + 1, d))
         self.report({'INFO'}, msg)
-        STATE['track'] = msg
+        for m in miss[:6]:
+            self.report({'WARNING'}, m + ' (an opponent must pass within 2.8 m, the player within 1.6 m)')
+        STATE['track'] = msg + (' | %d warning(s): %s' % (len(miss), miss[0]) if miss else '')
         return {'FINISHED'}
 
 
@@ -647,6 +682,7 @@ class RC_PT_track(bpy.types.Panel):
         row = box.row(align=True)
         row.operator('rccars.add_checkpoint', icon='ADD')
         row.operator('rccars.add_start', icon='EMPTY_SINGLE_ARROW')
+        box.operator('rccars.checkpoint_fx', icon='FILE_REFRESH')
         ob = context.active_object
         if ob is not None and ob.type == 'MESH':
             box.prop(ob.rc_track, 'collide', text='%s: collision' % ob.name)
@@ -660,7 +696,7 @@ class RC_PT_track(bpy.types.Panel):
 
 
 CLASSES = (RCAssetItem, RCNpcProps, RCTrackProps, RCTrackEditorPrefs, RC_OT_scan, RC_OT_import_asset, RC_OT_new_path,
-           RC_OT_add_start, RC_OT_import_paths, RC_OT_export_paths, RC_OT_add_checkpoint, RC_OT_preview_sky,
+           RC_OT_add_start, RC_OT_import_paths, RC_OT_export_paths, RC_OT_add_checkpoint, RC_OT_checkpoint_fx, RC_OT_preview_sky,
            RC_OT_export_track, RC_OT_build_library, RC_UL_assets, RC_PT_game, RC_PT_assets, RC_PT_npc, RC_PT_track)
 
 

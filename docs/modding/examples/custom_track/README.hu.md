@@ -1,6 +1,6 @@
 # Saját pálya (minta)
 
-Egy teljes, Blenderben készült saját pálya: egy 200 x 200 m-es sík kockás textúrával, négy ellenőrzőponttal, a
+Egy teljes, Blenderben készült saját pálya: egy 200 x 200 m-es sík kockás textúrával, tizenkét ellenőrzőponttal, a
 játékos rajtjával, egy gépi ellenféllel és HDRI égbolttal. Ebből látszik, hogyan áll össze egy pálya; utána
 elkészítheted a sajátodat.
 
@@ -22,7 +22,9 @@ Maga a pályafájl (`RCCarsDB\flat_test.sb`) nincs a repóban: az addon a játé
 2. Az addon beállításaiban (vagy a 3D nézet oldalsávján, N, **RC Cars** fül > *Game*) add meg a **Game folder**-t (a
    mappa, amiben a `RCCARS.exe` van), és nyomd meg a **Scan game folder**-t. Ha a modjaid nem a
    `<játék mappa>\mods`-ban vannak, a **Mods folder**-t is (a `RcCarsRe.exe` melletti `mods` mappa).
-3. Nyisd meg ebből a mappából a `flat_test.blend`-et (a `sky.exr` és az `error.png` maradjon mellette).
+3. Nyisd meg ebből a mappából a `flat_test.blend`-et (a `sky.exr` és az `error.png` maradjon mellette). Nyomd meg
+   a *Track export* > **Refresh checkpoints**-ot: az ellenőrzőpontok megkapják a jelölőjüket és a hologram nyilukat,
+   a játékod textúráiból.
 4. Oldalsáv > **RC Cars** > *Track export* > **Export track to mod**. Ez megírja a `mods\flat_test\` modot.
 5. Indítsd a `RcCarsRe.exe`-t: *Quick race* > **Flat test** pálya (a játék tíz pályája után).
 
@@ -31,9 +33,9 @@ Ami a jelenetben van:
 | Objektum | Mi ez |
 |---|---|
 | `Ground` | a pálya: 200 m-es rács (50 x 50 négyzet), `error` anyag az `error.png`-vel, az UV 4 méterenként ismétli |
-| `RC checkpoint 1` .. `4` | gömb empty-k egy 40 m-es körön; az 1-es a rajt-cél vonal, utána az óramutatóval szemben |
+| `RC checkpoint 1` .. `12` | egy 40 m-es körön; az 1-es a rajt-cél vonal (piros nyíl), utána az óramutatóval szemben (zöld nyilak) |
 | `RC player start` | a nyíl empty: itt áll a játékos autója, a nyíl irányába nézve |
-| `buggy1` | az ellenfél útja: zárt görbe; az első pontja az autó helye a rajtrácson |
+| `buggy1` | az ellenfél útja: zárt görbe az ellenőrzőpontokon át; az első pontja az autó helye a rajtrácson |
 | a jelenet beállításai | Level `flat_test`, Name `Flat test`, az ég `//sky.exr` (500 m sugár), a mod `flat_test` |
 
 ## Saját pálya készítése
@@ -49,8 +51,13 @@ Ami a jelenetben van:
 3. **Ütközés**: minden látható hálón lehet autózni, és neki lehet ütközni. Díszítéshez, amin az autók
    átmennek, jelöld ki az objektumot, és a *Track export* panelen kapcsold ki a *Collision*-t.
 4. **Ellenőrzőpontok**: tedd a 3D kurzort a helyére, és nyomd meg az *Add checkpoint*-ot; az 1-es a rajt-cél
-   vonal, a többi a kör sorrendjében jön. Legalább 2, legfeljebb 8. A verseny akkor számol kört, ha az autó
-   sorrendben áthalad rajtuk.
+   vonal, a többi a kör sorrendjében jön. Legalább 2, és annyi, amennyit szeretnél (legfeljebb 256). Mindegyik úgy
+   látszik, mint a játékban: a jelölője a talajon és fölötte a hologram nyíl (a rajt-cél vonalnál piros, a többinél
+   zöld; a játékban a következő pont fölött áll és villog - lejátszáskor lüktet). Z körül forgatva a jelölője is
+   fordul; átszámozás után a *Refresh checkpoints* újra elkészíti őket. A verseny akkor számol kört, ha az autó
+   sorrendben áthalad rajtuk, és **az autó csak akkor halad át egy ponton, ha 1,6 m-en belül megy el a közepe
+   mellett** (az ellenfél 2,8 m-en belül): tedd őket az út közepére, és az ellenfelek útja menjen át rajtuk - az
+   export figyelmeztet, ha egy út elkerül egyet.
 5. **Rajt**: a *Player start* (az *NPC paths* vagy a *Track export* panelen) a 3D kurzorhoz teszi a nyilat;
    forgasd Z körül, hogy a nyíl az út irányába mutasson, néhány méterrel az 1-es ellenőrzőpont előtt.
 6. **Ellenfelek** (nem kötelező): *NPC paths* > *New opponent path* egy zárt görbét készít; a pontjait vidd végig
@@ -72,7 +79,7 @@ A `<mods mappa>\<Mod>\` mappába:
 
 | Fájl | Mi |
 |---|---|
-| `RCCarsDB\<level>.sb` | a pálya: a hálóid, az ütközési rács, az ellenőrzőpontok és a rajt, a játék saját formátumában (a játék `urban_1.sb`-jének másolatára építve; annak emberei, hangjai és tárgyai kimaradnak). Az ütköző hálók négyzetes csempékre vágódnak (16 m-től), hogy az ütközési rács kicsi maradjon |
+| `RCCarsDB\<level>.sb` | a pálya: a hálóid, az ütközési rács, az ellenőrzőpontok a jelölőikkel és a rajt, a játék saját formátumában (a játék `urban_1.sb`-jének másolatára építve; annak emberei, hangjai és tárgyai kimaradnak). Az ütköző hálók négyzetes csempékre vágódnak (16 m-től), hogy az ütközési rács kicsi maradjon |
 | `Textures\<level>_<kép>.png` | az anyagok képei (a játék saját textúráját a nevén használja, nem másolja) |
 | `Textures\sky_<level>.exr` (vagy `.hdr` / `.png` / `.dds`) | az égbolt |
 | `scripts\track_<level>.lua` | `rc.registerTrack{...}`: egy mod `scripts` mappájának minden `.lua` fájlja lefut a játék indulásakor, így a pálya megjelenik a Quick race oldalon |
@@ -94,7 +101,7 @@ Minden változtatás után exportálj újra; a játékot indítsd újra, hogy l�
 
 | Fájl | |
 |---|---|
-| `flat_test.blend` | a Blender jelenet (Blender 4.2+, telepített addonnal) |
+| `flat_test.blend` | a Blender jelenet (Blender 4.2+, telepített addonnal; az ellenőrzőpontok jelölői és nyilai a játékodból jönnek: *Refresh checkpoints*) |
 | `error.png` | a talaj textúrája (a .blend-be is be van csomagolva) |
 | `sky.exr` | a HDRI égbolt, a `make_sky.py`-jal készült (a Blender fizikai ege, panorámaként renderelve) |
 | `make_sky.py` | HDRI eget készít `.hdr` és `.exr` formában |
