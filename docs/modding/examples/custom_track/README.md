@@ -9,7 +9,7 @@ You need:
 
 - your own installed copy of RC Cars (DVD or Steam) and **RcCarsRe 0.2.0** or newer (it reads `.hdr` / `.exr`
   skies; [releases](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.1.zip` from the same
+- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.2.zip` from the same
   release (its source is in [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 The level file itself (`RCCarsDB\flat_test.sb`) is not in this repository: the add-on builds it on a copy of one of

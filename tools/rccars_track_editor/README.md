@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.1, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.2, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.1.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.2.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -32,7 +32,14 @@ field), **Import**.
 | PS2 cars | the PS2 cars and bodies | yes |
 
 A model comes in at the 3D cursor under an empty named after it; a track in a collection of its own. Textures are
-the game's (a mod's PNG / DDS before the game's `.csi`), packed into the .blend. Coordinates: Blender (x, y, z) =
+the game's (a mod's PNG / DDS before the game's `.csi`), packed into the .blend. A track's baked light comes too:
+its light maps (the faces' second layer `LM_1`, a second UV map of that name; the level's own light map textures,
+named after the level) or, on the PS2 levels, its vertex colours (the colour attribute `Col`). Such a material is
+drawn as the game draws it: texture x light map (x vertex colour), unlit (an Emission shader) - so the track looks
+the same in Material Preview and in a render with no lights in the scene. The water (the objects with "more" in
+their name, which the game moves and waves) comes at the height the game draws it - its slider file's offset added
+(the object moved: custom properties `rc_water`, `rc_water_offset`) - and of its overlapping levels of detail only the
+finest is shown (the others in the hidden collection "water, coarser levels"). Coordinates: Blender (x, y, z) =
 game (-x, z, y), 1 unit = 1 m.
 
 ## Asset library: model and texture browser, drag & drop
@@ -122,6 +129,12 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.2**: an imported track keeps its baked light: the light maps (`LM_1`) of the PC levels and the vertex
+  colours of the PS2 levels, multiplied onto the textures as in the game.
+  The water: imported at the height the game draws it (its `Settings\WLOD_<level>_<object>` offset), only its
+  finest level of detail shown; exported again as the game's water (named after its object, at its rest height,
+  its settings file copied under the new level's name) - it stood 0.37 m too high on beach_1 before. An imported
+  track's checkpoint markers (`..._ACP<n>`) are left out of the export (the checkpoints make their own).
 - **0.1.1**: with the Steam release (`RCCars.pack`) the textures were not loaded - the imported tracks and models
   had no textures and the asset library none either: the pack's textures are XOR-encrypted, as the game reads them
   they are now decrypted.
@@ -133,4 +146,6 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
   not as the game's pushable object; water surfaces, light maps and the game's special materials are not made.
 - The PS2 levels hold every face twice (once each way round); the importer keeps one and draws those meshes
   from both sides (their materials end in `_2s`, backface culling off).
-- Lightmaps and the game's special materials (water waves, blending modes) are left out of the imported materials.
+- The game's special materials (water waves, blending modes) and the second texture layers (`BAS2` blended by
+  `ALP1`: some ground patches) are left out of the imported materials. A track exported again keeps its vertex
+  colours but not its light maps.

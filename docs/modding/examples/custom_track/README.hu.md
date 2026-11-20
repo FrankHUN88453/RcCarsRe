@@ -10,7 +10,7 @@ Ami kell hozzá:
 
 - a játék saját, telepített példánya (DVD vagy Steam) és a **RcCarsRe 0.2.0** vagy újabb (ez olvassa a `.hdr` /
   `.exr` égboltot; [kiadások](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.1.zip` ugyanabból a
+- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.2.zip` ugyanabból a
   kiadásból (a forrása: [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 Maga a pályafájl (`RCCarsDB\flat_test.sb`) nincs a repóban: az addon a játék egyik saját pályájának másolatára

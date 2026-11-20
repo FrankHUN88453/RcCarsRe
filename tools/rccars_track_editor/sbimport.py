@@ -8,6 +8,7 @@ Mesh 0x3408 dword 3: 0x800 collision-only walls, 0x1000 alpha blended.
 Blender (x, y, z) = game (-x, z, y)."""
 import math
 import os
+import re
 
 import bpy
 import numpy as np
@@ -67,8 +68,8 @@ def mesh_flags(mesh):
 class Textures:
     """the database's GLTX objects -> Blender images (loaded once a name; cached for the session)"""
 
-    def __init__(self, fs, tree, cache_dir):
-        self.fs, self.cache_dir = fs, cache_dir
+    def __init__(self, fs, tree, cache_dir, scope=None):
+        self.fs, self.cache_dir, self.scope = fs, cache_dir, scope
         self.gltx = {}
         for g, _ in cc.iter_objs(tree, 'GLTX'):
             d = g.get(0x08, cc.DWORD)
@@ -80,11 +81,24 @@ class Textures:
         g = self.gltx.get(index)
         return g.name() if g else None
 
+    def embedded(self, index):
+        g = self.gltx.get(index)
+        blob = g.get(0x32) if g else None
+        return blob is not None and bytes(blob.raw[:4]) == b'MISC'
+
+    def key(self, index):
+        """the texture's name for images and materials: an embedded one (the light maps: every level has its own
+        lightmap___rds_00 ..) with the level's name in front"""
+        name = self.name(index)
+        if name and self.scope and self.embedded(index):
+            return '%s_%s' % (self.scope, name)
+        return name
+
     def image(self, index):
         name = self.name(index)
         if not name:
             return None
-        key = 'rc_' + name
+        key = 'rc_' + self.key(index)
         if key in bpy.data.images:
             return bpy.data.images[key]
         g = self.gltx[index]
@@ -116,6 +130,84 @@ class Textures:
         if img is None:
             self.missing.add(name)
         return img
+
+
+def _multiply(nt, a, b, x):
+    """a Mix node (RGBA, Multiply, factor 1) of the two colour outputs; its colour output"""
+    mix = nt.nodes.new('ShaderNodeMix')
+    mix.data_type = 'RGBA'
+    mix.blend_type = 'MULTIPLY'
+    mix.location = (x, 0)
+    mix.inputs[0].default_value = 1.0
+    nt.links.new(a, mix.inputs[6])
+    nt.links.new(b, mix.inputs[7])
+    return mix.outputs[2]
+
+
+def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol):
+    """the game's look of a level face: the base texture x its light map (LM_1, the second UV layer) x the baked
+    vertex colours (the PS2 levels' light), unlit - the game draws its levels so (stage 1 MODULATE, no lights)"""
+    mname = 'rc_%s%s%s%s%s' % (key or 'white', '__' + lm_key if lm_key else '', '_vc' if vcol else '',
+                               '_blend' if blended else '', '_2s' if two_sided else '')
+    if mname in bpy.data.materials:
+        return bpy.data.materials[mname]
+    mat = bpy.data.materials.new(mname)
+    mat.use_nodes = True
+    mat.use_backface_culling = not two_sided
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    out.location = (700, 0)
+    em = nt.nodes.new('ShaderNodeEmission')
+    em.location = (300, -80)
+    em.inputs['Strength'].default_value = 1.0
+    colour, alpha = None, None
+    if tex is not None:
+        node = nt.nodes.new('ShaderNodeTexImage')
+        node.image = tex
+        node.location = (-500, 250)
+        uv = nt.nodes.new('ShaderNodeUVMap')
+        uv.uv_map = 'BAS1'
+        uv.location = (-750, 250)
+        nt.links.new(uv.outputs['UV'], node.inputs['Vector'])
+        colour = node.outputs['Color']
+        if blended or tex.get('rc_alpha'):
+            alpha = node.outputs['Alpha']
+        mat['rc_base'] = tex.name               # (the track export's base image: not the light map)
+    if lm_img is not None:
+        lm = nt.nodes.new('ShaderNodeTexImage')
+        lm.image = lm_img
+        lm.location = (-500, -50)
+        uv2 = nt.nodes.new('ShaderNodeUVMap')
+        uv2.uv_map = 'LM_1'
+        uv2.location = (-750, -50)
+        nt.links.new(uv2.outputs['UV'], lm.inputs['Vector'])
+        colour = _multiply(nt, colour, lm.outputs['Color'], -150) if colour is not None else lm.outputs['Color']
+    if vcol:
+        va = nt.nodes.new('ShaderNodeVertexColor')
+        va.layer_name = 'Col'
+        va.location = (-500, -300)
+        colour = _multiply(nt, colour, va.outputs['Color'], 50) if colour is not None else va.outputs['Color']
+    if colour is not None:
+        nt.links.new(colour, em.inputs['Color'])
+    else:
+        em.inputs['Color'].default_value = (0.6, 0.6, 0.6, 1)
+    shader = em.outputs['Emission']
+    if alpha is not None:
+        clear = nt.nodes.new('ShaderNodeBsdfTransparent')
+        clear.location = (300, 120)
+        mix = nt.nodes.new('ShaderNodeMixShader')
+        mix.location = (500, 0)
+        nt.links.new(alpha, mix.inputs['Fac'])
+        nt.links.new(clear.outputs[0], mix.inputs[1])
+        nt.links.new(shader, mix.inputs[2])
+        shader = mix.outputs[0]
+        if hasattr(mat, 'surface_render_method'):
+            mat.surface_render_method = 'DITHERED'
+        else:
+            mat.blend_method = 'HASHED'
+    nt.links.new(shader, out.inputs['Surface'])
+    return mat
 
 
 def material(key, tex, blended, two_sided=False):
@@ -165,7 +257,14 @@ def build_mesh(mesh, matrix, tex):
     uvs = mesh.get(0x13, cc.FARR)
     uvl = uvs.vecs() if uvs else []
     blended = bool(mesh_flags(mesh) & FLAG_BLEND)
-    faces, face_uv, mat_idx, slots = [], [], [], []
+    # the baked light: a light map layer LM_1 on the faces (the PC levels; its texture is embedded in the level's
+    # GLTX, its coordinates are in the same array as BAS1's), or a colour a vertex (chunk 0x34f0: RcCarsRe's own,
+    # the PS2 levels' light)
+    vc = mesh.get(0xf0)
+    vcols = list(vc.dwords()) if vc is not None and vc.kind == cc.DWORD else None
+    if vcols is not None and len(vcols) != len(co):
+        vcols = None
+    faces, face_uv, face_lm, mat_idx, slots = [], [], [], [], []
     seen = set()
     two_sided = False
     for f in flist.children:
@@ -182,40 +281,61 @@ def build_mesh(mesh, matrix, tex):
             two_sided = True
             continue
         seen.add(fk)
-        texi, ti = None, None
+        texi, ti, lmi, li = None, None, None, None
         layers = f.get(0x3a, cc.LIST)
         for layer in (layers.children if layers else ()):
             ch = layer.get(0x3d, cc.DWORD)
-            if ch and ch.dwords()[0].to_bytes(4, 'big') == b'BAS1':
+            cn = ch.dwords()[0].to_bytes(4, 'big') if ch else b''
+            if cn in (b'BAS1', b'LM_1'):
                 t = layer.get(0x3c, cc.DWORD)
                 u = layer.get(0x3f, cc.DWORD)
                 if t and u and len(u.dwords()) == len(vi) and max(u.dwords()) < len(uvl):
-                    texi, ti = t.dwords()[0], list(u.dwords())
+                    if cn == b'BAS1':
+                        texi, ti = t.dwords()[0], list(u.dwords())
+                    else:
+                        lmi, li = t.dwords()[0], list(u.dwords())
         if reverse:
             vi.reverse()
             if ti:
                 ti.reverse()
-        key = tex.name(texi) if texi is not None else None
+            if li:
+                li.reverse()
+        key = (tex.key(texi) if texi is not None else None, tex.key(lmi) if lmi is not None else None)
         if key not in slots:
             slots.append(key)
         faces.append(vi)
         face_uv.append(ti)
+        face_lm.append(li)
         mat_idx.append(slots.index(key))
     if not faces:
         return None
     me = bpy.data.meshes.new(mesh.name() or 'mesh')
     me.from_pydata(co, [], faces)
-    uv = me.uv_layers.new(name='BAS1')
-    flat = []
-    for f, ti in zip(faces, face_uv):
-        for k in range(len(f)):
-            u, v = (uvl[ti[k]][0], uvl[ti[k]][1]) if ti else (0.0, 0.0)
-            flat += (u, 1.0 - v)
-    uv.data.foreach_set('uv', flat)
-    index_of = {tex.name(i): i for i in tex.gltx}
-    for key in slots:
+    for lname, per_face in (('BAS1', face_uv), ('LM_1', face_lm)):
+        if lname == 'LM_1' and not any(per_face):
+            continue
+        uv = me.uv_layers.new(name=lname)
+        flat = []
+        for f, ti in zip(faces, per_face):
+            for k in range(len(f)):
+                u, v = (uvl[ti[k]][0], uvl[ti[k]][1]) if ti else (0.0, 0.0)
+                flat += (u, 1.0 - v)
+        uv.data.foreach_set('uv', flat)
+    me.uv_layers.active = me.uv_layers['BAS1']
+    if vcols is not None:                       # (0xAARRGGBB, sRGB like the textures)
+        ca = me.color_attributes.new('Col', 'BYTE_COLOR', 'POINT')
+        a = np.array(vcols, dtype=np.uint32)
+        rgba = np.stack([(a >> 16) & 255, (a >> 8) & 255, a & 255, np.full_like(a, 255)], -1) / 255.0
+        ca.data.foreach_set('color_srgb', rgba.astype(np.float32).ravel())
+        me.color_attributes.active_color = ca
+    index_of = {tex.key(i): i for i in tex.gltx}
+    for key, lm_key in slots:
         img = tex.image(index_of[key]) if key in index_of else None
-        me.materials.append(material(key, img, blended, two_sided))
+        if lm_key is None and vcols is None:
+            me.materials.append(material(key, img, blended, two_sided))
+        else:
+            lm_img = tex.image(index_of[lm_key]) if lm_key in index_of else None
+            me.materials.append(lit_material(key, img, blended, two_sided, lm_key, lm_img, vcols is not None))
     me.polygons.foreach_set('material_index', mat_idx)
     me.validate()
     me.update()
@@ -227,19 +347,62 @@ def untextured(me):
     return all(m is None or m.name.startswith('rc_untextured') for m in me.materials)
 
 
+LOD_RE = re.compile(r'LOD(\d+)', re.I)
+
+
+def slider_value(text, key):
+    """a slider file's value (Key "<key>" / Values min max value), or None"""
+    m = re.search(r'Key\s+"%s"\s*\n\s*Values\s+(\S+)\s+(\S+)\s+(\S+)' % re.escape(key), text, re.I)
+    return float(m.group(3)) if m else None
+
+
+def water_settings(fs, level, record):
+    """the water record's slider file as the game looks for it (WLOD_<level>_<record>, else WLOD_<level>, else
+    WaterLOD; the text ones): (its path, its text) or (None, None)"""
+    for name in ('WLOD_%s_%s' % (level, record), 'WLOD_%s' % level, 'WaterLOD'):
+        p = 'Settings\\%s.ini' % name
+        if fs.exists(p):
+            try:
+                return p, fs.read(p).decode('latin1')
+            except Exception:
+                pass
+    return None, None
+
+
 def import_level(fs, path, cache_dir, collection_name=None):
-    """every mesh of a level database, in a collection of its own (collision walls hidden)"""
+    """every mesh of a level database, in a collection of its own (collision walls hidden).
+    The water (the game's 'WTRL': every top-level object of the environment with "more" in its name) is put where the
+    game draws it: its slider file's offset (value x 0.01 - 0.5 m) added to its height - the object moved, its mesh
+    kept, so the track export can take it back; of its levels of detail (LOD1 coarse .. LOD3 fine, overlapping) the
+    finest is shown, the others go into a hidden collection"""
     tree = cc.parse(fs.read(path))
-    tex = Textures(fs, tree, cache_dir)
-    name = collection_name or os.path.splitext(os.path.basename(path))[0]
+    level = os.path.splitext(os.path.basename(path))[0]
+    name = collection_name or level
+    tex = Textures(fs, tree, cache_dir, level)
     root = bpy.data.collections.new(name)
     bpy.context.scene.collection.children.link(root)
     coll = bpy.data.collections.new(name + ' collision and helpers')
     root.children.link(coll)
     sky = bpy.data.collections.new(name + ' sky')        # (the sky dome, clouds, backdrop: they hide the track
     root.children.link(sky)                              #  when looked at from above)
+    lods = bpy.data.collections.new(name + ' water, coarser levels')
+    root.children.link(lods)
     count = 0
+    water = {}                                          # record -> (offset, settings path)
+    finest = {}                                         # a LOD group (the meshes' parent) -> its finest level
     for mesh, parents in cc.iter_objs(tree, 'MESH'):
+        k = LOD_RE.search(mesh.name() or '')
+        if k and parents:
+            finest[id(parents[-1])] = max(finest.get(id(parents[-1]), 0), int(k.group(1)))
+    for mesh, parents in cc.iter_objs(tree, 'MESH'):
+        chain = [p for p in parents if p.cls == 'MESH'][1:] + [mesh]    # (without the level's root mesh)
+        top = next((p for p in chain if 'more' in (p.name() or '').lower()), None)   # (the outermost "more")
+        rec = top.name() if top is not None else None
+        if rec and rec not in water:
+            sp, text = water_settings(fs, level, rec)
+            v = slider_value(text, 'offset') if text else None
+            off = min(0.5, max(-0.5, v * 0.01 - 0.5)) if v is not None else 0.0
+            water[rec] = (off, sp)
         me = build_mesh(mesh, world_matrix(list(parents) + [mesh]), tex)
         if me is None:
             continue
@@ -251,12 +414,26 @@ def import_level(fs, path, cache_dir, collection_name=None):
             target = sky
         else:
             target = root
+        if rec:
+            off, sp = water[rec]
+            ob.location.z += off
+            ob['rc_water'] = rec
+            ob['rc_water_offset'] = off
+            ob['rc_water_level'] = level
+            if sp:
+                ob['rc_water_settings'] = sp
+            k = LOD_RE.search(mesh.name() or '')
+            best = finest.get(id(parents[-1]), 0) if parents else 0
+            if k and int(k.group(1)) != best and target is root:
+                target = lods
         target.objects.link(ob)
         ob['rc_source'] = path
         count += 1
-    for c in (coll, sky):
+    for c in (coll, sky, lods):
         c.hide_viewport = True
         c.hide_render = True
+    if not lods.objects:
+        bpy.data.collections.remove(lods)
     root['rc_level'] = path
     return root, count, tex.missing
 

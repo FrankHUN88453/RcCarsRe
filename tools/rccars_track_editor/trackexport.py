@@ -29,6 +29,7 @@ TEMPLATE = ('RCCarsDB\\urban_1.sb', 'urban_1')
 GAME_LEVELS = {'beach_1', 'beach_2', 'beach_3', 'beach_4', 'country_1', 'country_2', 'country_3', 'country_4',
                'urban_1', 'urban_2'}
 NAME_RE = re.compile(r'^[a-z0-9_]{1,24}$')
+ACP_RE = re.compile(r'(^|_)ACP\d+', re.I)
 SKY_EXT = ('.hdr', '.exr', '.png', '.dds')
 
 
@@ -65,6 +66,9 @@ def material_image(mat):
         return None, False
     nt = mat.node_tree
     img, alpha = None, False
+    base = bpy.data.images.get(mat.get('rc_base', ''))   # (an imported level's lit material: its base, not its light map)
+    if base is not None:
+        return base, bool(base.get('rc_alpha'))
     for node in nt.nodes:
         if node.type == 'BSDF_PRINCIPLED':
             for name in ('Base Color', 'Alpha'):
@@ -179,6 +183,8 @@ def track_objects(context):
             continue
         if ob.rc_npc.is_path or ob.rc_npc.is_start or ob.rc_track.checkpoint or ob.get(cpfx.FX):
             continue
+        if ACP_RE.search(ob.name):      # (an imported track's checkpoint marker: the checkpoints make their own)
+            continue
         out.append(ob)
     return out
 
@@ -229,12 +235,21 @@ def object_meshes(context, ob, tex, groups):
             point = ca.domain == 'POINT'
         slots = [ms.material for ms in ob.material_slots] or [None]
         collide = ob.rc_track.collide
+        # the water: an imported track's (rc_water: its record, moved by the game's offset) or any object with "more"
+        # in its name - a mesh of its own named after it (the game's water takes the top-level objects with "more"),
+        # not collidable, at its rest height (the import's offset taken back: the game adds it again)
+        water = ob.get('rc_water') or (re.sub(r'[^A-Za-z0-9_]', '_', ob.name) if 'more' in ob.name.lower() else None)
+        if water:
+            collide = False
+            dz = float(ob.get('rc_water_offset', 0.0))
+            if dz:
+                co = co - np.array([0.0, 0.0, dz], dtype=np.float32)
         per_mat = {}
         for k in range(nt):
             per_mat.setdefault(int(tm[k]) if tm[k] < len(slots) else 0, []).append(k)
         for mi, tris in per_mat.items():
             gid, see = tex.of_material(slots[mi])
-            g = groups.setdefault((gid, see, collide), lw.Mesh(None, see, collide))
+            g = groups.setdefault((gid, see, collide, water), lw.Mesh(water, see and not water, collide))
             out = []
             for k in tris:
                 corners = []
@@ -314,6 +329,19 @@ def export(context, fs, mods_dir, mod, level, name, description, sky_path, sky_r
     with open(os.path.join(root, 'RCCarsDB', level + '.sb'), 'wb') as f:
         f.write(data)
     tex.write(os.path.join(root, 'Textures'))
+    # the water's settings (waves, offset): the source level's slider file under the new level's name
+    wrote = set()
+    for ob in track_objects(context):
+        rec, src = ob.get('rc_water'), ob.get('rc_water_settings')
+        if rec and src and rec not in wrote:
+            try:
+                data = fs.read(src)
+            except Exception:
+                continue
+            os.makedirs(os.path.join(root, 'Settings'), exist_ok=True)
+            with open(os.path.join(root, 'Settings', 'WLOD_%s_%s.ini' % (level, rec)), 'wb') as f:
+                f.write(data)
+            wrote.add(rec)
     ai = report('npc', level)                     # (the opponents: the NPC tool's export; its AI layout's name)
 
     def s(v):
