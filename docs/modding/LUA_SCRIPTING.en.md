@@ -10,7 +10,7 @@ Scripts cannot change the race, the cars or the game's files, with one exception
 (chapter 6, API 1.4) runs the rules of its own races (single player, and since API 1.5 network races too).
 
 The language is [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT licence, see
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.10**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). This page describes API version **1.14**.
 
 ## 1. Overview
 
@@ -94,7 +94,7 @@ Define these as global functions. All are optional.
 
 | Function | Returns |
 |---|---|
-| `rc.version` | the API version string (`"1.10"`) |
+| `rc.version` | the API version string (`"1.14"`) |
 | `rc.modName` | the mod's name |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = the HUD's race timer in seconds (-1 before GO). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (player 1 finished), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` or `nil`. `speed` in km/h; `player` = 1 / 2 for a player's car; `raceTime` = the car's time since GO (it stops when the car finishes); (1.8) `airTime` = seconds since a wheel of the car last touched the ground (0 on the ground) and `vy` = its vertical speed in m/s (negative while it falls); both are 0 for the opponents; (1.9) `dir` and `up` = the car's forward and up axes as `{x, y, z}`, `spin` = its angular velocity in rad/s about the world's axes (0 for the opponents) |
@@ -332,6 +332,7 @@ rc.registerMode{
   laps = false,                                      -- no lap counter (default: as checkpoints)
   ai = "script",                                     -- "script": the AI cars obey rc.ai; "race": they race
   respawn = false,                                   -- the game puts no car back (default true)
+  hidden = true,                                     -- (1.12) not in the Quick race's Mode row: only rc.startRace{mode =} starts it
   hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- the HUD parts the mode hides
 }
 ```
@@ -369,12 +370,19 @@ The normal events (`onRaceStart`, `onCollision`, `onFrame`, ...) keep coming to 
 | `rc.mode.finish(results, title, options)` | ends the race: every car finishes, then the game's finish and its results page with these rows. `results` = `{{car =, place =, text =}, ...}`; `title` (default: the mode's name) heads the text column. `options = {resultsDelay = s}` holds the results page that long (an end shot), `rc.mode.showResults()` lets it come at once |
 | `rc.mode.holdEnd{seconds =, skippable =}` | after `rc.mode.finish`: the game's results page comes `seconds` (default 20, at most 60) later, for an end shot. `skippable = false` (the default): the player's keys and buttons do nothing meanwhile and the pause menu does not open (closing the window still quits). A script error or a reload ends the hold at once |
 | `rc.mode.showResults()` | the held results page now |
+| `rc.mode.holdStart(on)` | (1.13) while `on`, the start's countdown (3, 2, 1, GO) waits, for an intro (camera shots, texts) before the race; the level's road cars already drive meanwhile. Off again with `false`, by itself after 90 s of game frames, when the race is left, or when the mode's race comes up again (`onModeLoad` and *Race again* reset it: set it in `onModeLoad` or later). Single player only (ignored in network races). Returns the new state; the log shows "Game modes: the start's countdown held / released" |
 | `rc.mode.respawn(on)` | the game's car resets on / off for this race (the start value is `registerMode`'s `respawn`). Off, a car on its side or roof is still set upright where it is after 2 s (the player's too), but never moved elsewhere |
 | `rc.mode.respawnCar(car)` | the mode puts the car back on the nearest point of the AI driving lines (works with `respawn = false` too) |
 | `rc.setCarTeam(car, n)` | the car's team (any number; `rc.car(i).team`) |
 | `rc.setCar(car, {model =, paint =, physics =})` | the car turns into another RC car of the game: `model` = `"Overkill"`, `"Buggy"` or `"Warhammer"`, `paint` = 1 .. 4 (the garage's paints), `physics` = `true` (default: it drives with that car's physics profile too) or `false` (only the look). `rc.setCar(car, nil)`: its own car again. The car keeps its upgrades, its sounds and its motion |
 | `rc.carName(car)` | the racer's name |
 | `rc.distance(car1, car2)` | metres between two cars |
+
+An intro before the start (1.13):
+
+```lua
+function onModeLoad(info) rc.mode.holdStart(true) end   -- then rc.mode.holdStart(false) when the intro ends
+```
 
 `rc.car(i)` also has (1.4) `team`, `model` (`""` its own), `paint` (0 its own), `frozen` and `contacts`: the cars
 it touched this frame (`{2, 4}`).
@@ -403,9 +411,11 @@ not take the same line again. With respawns allowed a car stuck three times with
 
 | Function | Meaning |
 |---|---|
-| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | the sound with a handle (`false` when it does not play). `loop = true`: until `rc.stopSound`. `car = i` / `pos = {x, y, z}`: placed in the world through DirectSound 3D like the game's own sounds: full volume within `minDist` (5) metres of the camera, quieter down to -20 dB at `maxDist` (60) and never quieter, from its direction (a car's sound follows the car; in the split screen without direction). `pan` = -1 .. 1, or `panTo = {x, y, z}`: from that direction as seen by the camera. At most 16 a mod at a time; all stop when the race is left |
+| `rc.playSound(name, {volume =, loop =, car =, pos =, object =, minDist =, maxDist =, pan =, panTo =})` | the sound with a handle (`false` when it does not play). `loop = true`: until `rc.stopSound`. `car = i` / `pos = {x, y, z}`: placed in the world through DirectSound 3D like the game's own sounds: full volume within `minDist` (5) metres of the camera, quieter down to -20 dB at `maxDist` (60) and never quieter, from its direction (a car's sound follows the car; in the split screen without direction). (1.14) `object = "name"`: placed at the level object of that name (an instance of the level, e.g. a road car or a prop) and following it as a car's sound follows the car; an error when the level has no such object. `pan` = -1 .. 1, or `panTo = {x, y, z}`: from that direction as seen by the camera. At most 16 a mod at a time; all stop when the race is left |
 | `rc.stopSound(handle)` | stops it |
 | `rc.soundPlaying(handle)` | `true` while it plays |
+| `rc.object(name)` | (1.14) a level object (an instance of the level by its name) in the race: `{x, y, z, roadcar, driving}`; `roadcar` = `true` for a road car, `driving` = `true` while that road car drives on its path (not idle or hidden); `nil` when the level has no such object or no race is on |
+| `rc.roadcarSound(name, on)` | (1.14) `false` silences the road car's own class sound (the level's Roadcar / Roadcar_slow channel), for a script that gives it a sound of its own (`rc.playSound(name, {object = ..., loop = true})`); `true` (or no argument) gives it back. Returns `true` when the level has that road car; kept until the level is left |
 | `rc.listModFiles(folder, pattern)` | the mod's own files in that folder whose names match (`*`, `?`), e.g. `rc.listModFiles("sounds", "hit*.wav")`; empty files are left out (with a warning) |
 | `rc.levelAmbient(on, music)` | `false` mutes the level's looping ambience (its background loops, the sea, streams and waterfalls; one-shot sounds such as a prop's or a stone's hit and voices stay, as do the cars', effects' and scripts' sounds); `music` = dB for the race's music (0 as set, -100 silent; the menus' music stays). Given back when the race is left, at a reload and when the mod's scripts stop |
 | `rc.fog{...}` | (1.4) returns `true` when the game's fog shows (Options / Video fog on) |
@@ -536,7 +546,8 @@ end
 | Function | Description |
 |---|---|
 | `rc.registerMenu{id =, name =, onSelect =}` | adds a button to the main menu, between Mods and Credits. `name` is a text or a language table; `onSelect` runs when the button is pressed. The menu has room for two such buttons in all (over every mod); a third is left out with a warning and the call returns `false`. With an entry the menu's buttons move a little closer together |
-| `rc.startRace{track =, car =, laps =, mode =}` | starts a Quick race from the menus. `track`: one of the game's ten (`"beach_1"` .. `"country_4"`, the display name, or 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, or the id of an added car or body (default: the player's car); `laps`: the lap count; `mode`: the id of a game mode registered with `rc.registerMode` (default: a plain race). Returns `true` when the start is queued (it happens within a second), or `false` and a reason (a race is running, a network game, no player chosen) |
+| `rc.startRace{track =, car =, laps =, mode =, paint =}` | starts a Quick race from the menus. `track`: one of the game's ten (`"beach_1"` .. `"country_4"`, the display name, or 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, or the id of an added car or body (default: the player's car); `laps`: the lap count; `mode`: the id of a game mode registered with `rc.registerMode` (default: a plain race). Returns `true` when the start is queued (it happens within a second), or `false` and a reason (a race is running, a network game, no player chosen) (1.14) `paint`: the car's / body's paint, 1 .. as the Quick race's skin chooser counts them (default: the player's own choice). |
+| `rc.leaveRace()` | (1.14) leaves the race as the pause menu's *Quit* does (nothing saved), at the start of the next frame; then the menu comes back (`onMenu`). Single player races only; `false` when not in such a race |
 | `rc.addSpin(car, x, y, z)` | changes the car's angular velocity by that much (rad/s about the world's axes), e.g. to let the player turn the car in the air. Only a car with its own physics (the players'), not in a network race; returns `true` when done |
 
 ### Added tracks (1.10)
@@ -559,6 +570,14 @@ rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"}
 - `name`, `description`: a text or a language table.
 
 `rc.startRace{track = "<id>"}` starts an added track by its id. Added tracks are not in the Championship, the Ghost race or the multiplayer pages, and no records or statistics are kept for them.
+
+### Models of a mod (1.11)
+
+```lua
+rc.registerModel("MyCan", "RCCarsDB\\my_props.sb")
+```
+
+`rc.registerModel(name, file)` tells the game that the model `name` is in the mod's own database file. A level can then use it as the prototype of its instances: the props of an added track (cans, balls and so on, built like the models of the game's `stone.sb`, with their script and sound channel). The name must not be one of the game's own models; the file path is relative, as mods give their files.
 
 ## 7. Sandbox limits
 

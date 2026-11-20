@@ -11,7 +11,7 @@ játék fájljait, egy kivétellel: egy játékmód szkriptje (6. fejezet, API 1
 szabályait (egyelőre egyjátékos módban).
 
 A nyelv a [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, MIT-licenc, lásd
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.10**-es verziójáé.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ez a leírás az API **1.14**-es verziójáé.
 
 ## 1. Áttekintés
 
@@ -96,7 +96,7 @@ A `car` az autó sorszáma, 1 .. `rc.race().cars`. A `results` helyezési sorren
 
 | Függvény | Visszaad |
 |---|---|
-| `rc.version` | az API verziója (`"1.10"`) |
+| `rc.version` | az API verziója (`"1.14"`) |
 | `rc.modName` | a mod neve |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = a HUD versenyórája másodpercben (a rajt előtt -1). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (az 1. játékos célba ért), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` vagy `nil`. `speed` km/h-ban; `player` = 1 / 2 egy játékos autójánál; `raceTime` = az autó ideje a rajt óta (megáll, amikor az autó célba ér); (1.8) `airTime` = másodpercek azóta, hogy az autó valamelyik kereke utoljára földet ért (a földön 0), `vy` = a függőleges sebessége m/s-ban (esés közben negatív); az ellenfeleknél mindkettő 0; (1.9) `dir` és `up` = az autó előre és felfelé mutató tengelye `{x, y, z}` alakban, `spin` = a szögsebessége rad/s-ban a világ tengelyei körül (az ellenfeleknél 0) |
@@ -338,6 +338,7 @@ rc.registerMode{
   laps = false,                                      -- nincs körszámláló (alapból: mint a checkpoints)
   ai = "script",                                     -- "script": a gépi autók az rc.ai-t követik; "race": versenyeznek
   respawn = false,                                   -- a játék nem tesz vissza autót (alapból true)
+  hidden = true,                                     -- (1.12) nincs a Quick race Mode sorában: csak az rc.startRace{mode =} indítja
   hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- a HUD részei, amelyeket a mód elrejt
 }
 ```
@@ -375,12 +376,19 @@ A normál események (`onRaceStart`, `onCollision`, `onFrame`, ...) továbbra is
 | `rc.mode.finish(results, title)` | lezárja a versenyt: minden autó befut, utána jön a játék célba érése és az eredménylap ezekkel a sorokkal. `results` = `{{car =, place =, text =}, ...}`; a `title` (alapból a mód neve) a szövegoszlop fejléce |
 | `rc.mode.holdEnd{seconds =, skippable =}` | az `rc.mode.finish` után: a játék eredménylapja `seconds` (alapból 20, legfeljebb 60) másodperccel később jön, egy zárójelenethez. `skippable = false` (alapból): a játékos gombjai addig semmit sem tesznek, a szünetmenü sem nyílik meg (az ablak bezárása továbbra is kilép). Szkripthiba vagy újratöltés azonnal feloldja |
 | `rc.mode.showResults()` | a visszatartott eredménylap most |
+| `rc.mode.holdStart(on)` | (1.13) amíg `on`, a rajt visszaszámlálása (3, 2, 1, GO) vár, egy verseny előtti intróhoz (kameraképek, szövegek); a pálya úti autói közben már mennek. `false`-szal újra kikapcsol, magától 90 s játékbeli képkocka után, a verseny elhagyásakor, vagy amikor a mód versenye újra megjelenik (az `onModeLoad` és a *Verseny újra* törli: az `onModeLoad`-ban vagy később állítsd be). Csak egyjátékos versenyben (hálózati versenyben hatástalan). Az új állapotot adja vissza; a naplóban "Game modes: the start's countdown held / released" |
 | `rc.mode.respawn(on)` | a játék autó-visszahelyezései be / ki erre a versenyre (a kezdőérték a `registerMode` `respawn`-ja). Kikapcsolva az oldalán vagy tetején fekvő autót 2 s után a helyén talpra állítja (a játékosét is), de máshová nem viszi |
 | `rc.mode.respawnCar(car)` | a mód visszateszi az autót a gépi vezetési vonalak legközelebbi pontjára (`respawn = false` mellett is) |
 | `rc.setCarTeam(car, n)` | az autó csapata (bármilyen szám; `rc.car(i).team`) |
 | `rc.setCar(car, {model =, paint =, physics =})` | az autó a játék egy másik RC autójává válik: `model` = `"Overkill"`, `"Buggy"` vagy `"Warhammer"`, `paint` = 1 .. 4 (a garázs festései), `physics` = `true` (alapból: annak az autónak a fizikájával is megy) vagy `false` (csak a kinézet). `rc.setCar(car, nil)`: újra a saját autója. Az autó megtartja a fejlesztéseit, a hangjait és a mozgását |
 | `rc.carName(car)` | a versenyző neve |
 | `rc.distance(car1, car2)` | két autó távolsága méterben |
+
+Intró a rajt előtt (1.13):
+
+```lua
+function onModeLoad(info) rc.mode.holdStart(true) end   -- az intró végén rc.mode.holdStart(false)
+```
 
 Az `rc.car(i)` táblában (1.4) van még `team`, `model` (`""` a sajátja), `paint` (0 a sajátja), `frozen` és
 `contacts`: az autók, amelyekhez ebben a képkockában hozzáért (`{2, 4}`).
@@ -409,9 +417,11 @@ hátrál, a szabadabb oldalon egy kerülőponton megkerüli, és folytatja; 4 s-
 
 | Függvény | Jelentés |
 |---|---|
-| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | a hang azonosítóval (`false`, ha nem szól). `loop = true`: az `rc.stopSound`-ig. `car = i` / `pos = {x, y, z}`: a világban elhelyezve, DirectSound 3D-vel, mint a játék saját hangjai: `minDist` (5) méteren belül teljes hangerő a kamerától, `maxDist`-ig (60) halkul -20 dB-ig, ennél halkabb nem lesz, az irányából szól (egy autó hangja követi az autót; osztott képernyőn irány nélkül). `pan` = -1 .. 1, vagy `panTo = {x, y, z}`: abból az irányból, ahogy a kamera látja. Modonként egyszerre legfeljebb 16; a verseny elhagyásakor mind elhallgat |
+| `rc.playSound(name, {volume =, loop =, car =, pos =, object =, minDist =, maxDist =, pan =, panTo =})` | a hang azonosítóval (`false`, ha nem szól). `loop = true`: az `rc.stopSound`-ig. `car = i` / `pos = {x, y, z}`: a világban elhelyezve, DirectSound 3D-vel, mint a játék saját hangjai: `minDist` (5) méteren belül teljes hangerő a kamerától, `maxDist`-ig (60) halkul -20 dB-ig, ennél halkabb nem lesz, az irányából szól (egy autó hangja követi az autót; osztott képernyőn irány nélkül). (1.14) `object = "név"`: a pálya ilyen nevű objektumánál (a pálya egy példánya, pl. egy úti autó vagy egy tárgy), és követi, ahogy egy autó hangja az autót; hiba, ha a pályán nincs ilyen objektum. `pan` = -1 .. 1, vagy `panTo = {x, y, z}`: abból az irányból, ahogy a kamera látja. Modonként egyszerre legfeljebb 16; a verseny elhagyásakor mind elhallgat |
 | `rc.stopSound(handle)` | leállítja |
 | `rc.soundPlaying(handle)` | `true`, amíg szól |
+| `rc.object(name)` | (1.14) a pálya egy objektuma (a pálya egy példánya a neve szerint) a versenyben: `{x, y, z, roadcar, driving}`; `roadcar` = `true` egy úti autónál, `driving` = `true`, amíg az az úti autó az útvonalán megy (nem áll és nem rejtett); `nil`, ha a pályán nincs ilyen objektum, vagy nincs verseny |
+| `rc.roadcarSound(name, on)` | (1.14) `false` elnémítja az úti autó saját osztályhangját (a pálya Roadcar / Roadcar_slow csatornáját) egy szkriptnek, amely saját hangot ad neki (`rc.playSound(name, {object = ..., loop = true})`); `true` (vagy argumentum nélkül) visszaadja. `true`-t ad, ha a pályán van ilyen úti autó; a pálya elhagyásáig marad |
 | `rc.listModFiles(folder, pattern)` | a mod saját fájljai abban a mappában, amelyek neve illeszkedik (`*`, `?`), pl. `rc.listModFiles("sounds", "hit*.wav")`; az üres fájlok kimaradnak (figyelmeztetéssel) |
 | `rc.levelAmbient(on, music)` | `false` elnémítja a pálya ismétlődő háttérhangjait (a háttérzajokat, a tengert, a patakokat és a vízesést; az egyszeri hangok, pl. egy tárgy vagy kő ütközése és a hangok, beszéd maradnak, ahogy az autók, az effektek és a szkriptek hangjai is); `music` = a verseny zenéjének dB-je (0 ahogy be van állítva, -100 néma; a menük zenéje marad). A verseny elhagyásakor, újratöltéskor és a mod szkriptjeinek leállásakor visszaáll |
 | `rc.fog{...}` | (1.4) `true`-t ad vissza, ha a játék köde látszik (Beállítások / Videó köd be) |
@@ -545,7 +555,8 @@ end
 | Függvény | Leírás |
 |---|---|
 | `rc.registerMenu{id =, name =, onSelect =}` | gombot ad a főmenühöz, a Mods és a Credits közé. A `name` szöveg vagy nyelvi tábla; az `onSelect` a gomb megnyomásakor fut le. A menüben összesen két ilyen gombnak van hely (az összes modra együtt); a harmadik figyelmeztetéssel kimarad, a hívás `false` értéket ad. Ha van bejegyzés, a menü gombjai kicsit közelebb kerülnek egymáshoz |
-| `rc.startRace{track =, car =, laps =, mode =}` | Gyors versenyt indít a menükből. `track`: a játék tíz pályájának egyike (`"beach_1"` .. `"country_4"`, a megjelenített név, vagy 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, vagy egy hozzáadott autó, illetve karosszéria azonosítója (alapértelmezés: a játékos autója); `laps`: a körök száma; `mode`: egy `rc.registerMode` hívással regisztrált játékmód azonosítója (alapértelmezés: sima verseny). `true`, ha az indítás sorba került (egy másodpercen belül megtörténik), különben `false` és az ok (verseny fut, hálózati játék, nincs kiválasztott játékos) |
+| `rc.startRace{track =, car =, laps =, mode =, paint =}` | Gyors versenyt indít a menükből. `track`: a játék tíz pályájának egyike (`"beach_1"` .. `"country_4"`, a megjelenített név, vagy 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"`, vagy egy hozzáadott autó, illetve karosszéria azonosítója (alapértelmezés: a játékos autója); `laps`: a körök száma; `mode`: egy `rc.registerMode` hívással regisztrált játékmód azonosítója (alapértelmezés: sima verseny). `true`, ha az indítás sorba került (egy másodpercen belül megtörténik), különben `false` és az ok (verseny fut, hálózati játék, nincs kiválasztott játékos) (1.14) `paint`: az autó / karosszéria festése, 1-től, ahogy a Gyors verseny skinválasztója számozza (alapból a játékos saját választása). |
+| `rc.leaveRace()` | (1.14) elhagyja a versenyt, ahogy a szünetmenü *Kilépés* gombja (semmit nem ment), a következő frame elején; utána visszajön a menü (`onMenu`). Csak egyjátékos versenyben; `false`, ha nem ilyenben van |
 | `rc.addSpin(car, x, y, z)` | ennyivel változtatja az autó szögsebességét (rad/s a világ tengelyei körül), például hogy a játékos a levegőben forgathassa az autót. Csak saját fizikájú autóra (a játékosokéra), hálózati versenyben nem; `true`, ha megtörtént |
 
 ### Hozzáadott pályák (1.10)
@@ -568,6 +579,14 @@ Az `rc.registerTrack` a mod egy pályáját adja a Gyors verseny oldalához, a j
 - `name`, `description`: szöveg vagy nyelvi tábla.
 
 Az `rc.startRace{track = "<id>"}` az azonosítójával indít el egy hozzáadott pályát. A hozzáadott pályák nincsenek benne a Bajnokságban, a Szellemversenyben és a többjátékos oldalakon, és nem készül róluk rekord vagy statisztika.
+
+### A mod saját modelljei (1.11)
+
+```lua
+rc.registerModel("MyCan", "RCCarsDB\\my_props.sb")
+```
+
+Az `rc.registerModel(name, file)` megmondja a játéknak, hogy a `name` nevű modell a mod saját adatbázisfájljában van. Egy pálya ezután használhatja a példányai prototípusaként: ilyenek egy hozzáadott pálya tárgyai (dobozok, labdák stb., a játék `stone.sb` modelljeihez hasonlóan felépítve, szkripttel és hangcsatornával). A név nem lehet a játék saját modelljének neve; a fájl útvonala relatív, ahogy a modok a fájljaikat megadják.
 
 ## 7. A homokozó korlátai
 

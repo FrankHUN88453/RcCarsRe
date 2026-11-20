@@ -106,7 +106,7 @@ Odczytane z poziomu samouczka PS2 (ogrodzone podwórko, którego nie ma w grze n
   Poziom PS2 przechowuje miejsce i kształt kolizji każdego; ma też kask, dla którego gra na PC nie ma modelu.
 - **Punkty kontrolne.** W poziomie PS2 to zwykła lista punktów, w poziomie PC to obiekty-znaczniki.
 - **Postacie.** Na podwórku samouczka jest chłopiec na trójkołowym rowerku (animowany model z własnym dźwiękiem)
-  i dwa stojące gokarty na pedały.
+  i dwa gokarty z kierowcą, które jeżdżą po nagranych pętlach (Kart.StartProfile).
 
 ## Pliki
 
@@ -119,17 +119,21 @@ Odczytane z poziomu samouczka PS2 (ogrodzone podwórko, którego nie ma w grze n
 
 ## W odtworzonej grze na PC
 
-Mod `ps2_cars` dodaje samochody PS2 do odtworzonej gry: Sting i CCCP jako nowe samochody z własnymi wartościami
+Mod `extension` dodaje grę PS2 do odtworzonej gry: plac samouczka PS2 jako trasę (w menu głównym przycisk "Tutorial" z intro i trzema zadaniami, do wyłączenia w config.ini modu) oraz samochody PS2: Sting i CCCP jako nowe samochody z własnymi wartościami
 fizyki, pozostałe osiem karoserii jako dodatkowe karoserie trzech samochodów PC i Stinga. Jego funkcje Lua
 opisuje [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md), rozdział 6a. Przerobione samochody powstają
 z własnej płyty PS2 użytkownika i nie są rozpowszechniane.
 
 Mod ma własny `config.ini`: `MatrixSystem=1` włącza zwolnienie czasu trybu Matrix podczas skoków (gra
-jednoosobowa), `Tutorial=1` dotyczy samouczka z PS2, który nie jest jeszcze przerobiony (w modzie są na razie
-tylko jego teksty).
+jednoosobowa), `Tutorial=1` pokazuje w menu głównym przycisk "Tutorial" samouczka z PS2.
 
-Poziom samouczka jest przerabiany na poziom PC (prace trwają): geometria, tekstury, zapisane światło, punkty
-kontrolne, trawa (kołysze się i daje się zdeptać) oraz przedmioty (jako własne puszki, piłki, wiadro i pachołek gry
-na PC) już są; przeciwników, chłopca na rowerku i zadań samouczka jeszcze nie ma.
+Poziom samouczka jest przerobiony na poziom PC: geometria, tekstury, zapisane światło, punkty kontrolne, trawa
+(kołysze się i daje się zdeptać), przedmioty (puszki, piłki, wiadro, pachołek i kask z PS2 jako modele),
+przeciwnicy, chłopiec na rowerku i dwa gokarty na swoich trasach z PS2 oraz trzy zadania samouczka z limitami czasu
+i punktacją trików jak na PS2. Plac ma teraz także żuki (chodzą i uciekają jak pająki gry na PC; nie odlatują jak
+na PS2), śmieci na ziemi, własne dźwięki chłopca i gokartów (pedałowanie, dzwonek, silniki gokartów) oraz
+podpowiedzi zadań pod klawiszem (H albo Back na padzie). Jak wszystko inne powstają one z własnej płyty PS2
+użytkownika i nie są rozpowszechniane.
 
-Nie przeniesiono: pozostałych tras PS2, punktacji trików w powietrzu, dźwięków PS2.
+Nie przeniesiono: pozostałych tras PS2, punktacji trików w powietrzu poza samouczkiem, dźwięków PS2 innych niż
+dźwięki placu samouczka, krótkiego wyścigu pokazowego z intro samouczka ani jego nagród.

@@ -9,8 +9,22 @@ Az RcCarsRe egy rajongói projekt, amely a 2003-as **RC Cars** (Creat Studio) PC
 
 *Gyors verseny az újraépített exében 2560 x 1440-ben, bekapcsolt valós idejű árnyékkal és tükröződéssel.*
 
-> Ez a tároló egyelőre csak ezt a leírást és az előnézeti képet tartalmazza. Forráskód még nincs közzétéve, és
-> az eredeti játék semmilyen része nem kerül ide soha.
+> Ez a tároló ezt a leírást, a dokumentációt és az **exe Windowsos változatát** (`release/`) tartalmazza.
+> Forráskód nincs közzétéve, és az eredeti játék semmilyen része nem kerül ide soha.
+
+## Letöltés és telepítés (Windows)
+
+1. Töltsd le a [`release/RcCarsRe.exe`](release/RcCarsRe.exe) és a [`release/openxr_loader.dll`](release/openxr_loader.dll)
+   fájlt (a DLL csak a VR-hez kell, nélküle is elindul a játék).
+2. Másold őket az RC Cars mappájába, az eredeti `RCCARS.exe` mellé (DVD-s telepítés vagy a Steames kiadás).
+   Az exe ennek a mappának a játékadatait használja; telepített játék nélkül nem működik.
+3. Indítsd el az `RcCarsRe.exe`-t. Első indításkor maga mellé írja az `RcCarsRe.ini`-t, benne minden beállítással és
+   értékeivel. (Más mappából is indítható: `-gamedir "<a játék mappája>"`.)
+
+Windows 10 / 11, 64 bites, Direct3D 11-et tudó videokártya. Az exe nincs digitálisan aláírva, ezért a Windows SmartScreen
+figyelmeztethet ismeretlen kiadóra. Ellenőrzőösszegek: [`release/SHA256SUMS.txt`](release/SHA256SUMS.txt); a felhasznált
+külső könyvtárak és licenceik: [`release/THIRD_PARTY_LICENSES.txt`](release/THIRD_PARTY_LICENSES.txt). Az eredeti
+`RCCARS.exe` és a mentéseid érintetlenek maradnak; a két exe egymás mellett is használható.
 
 ## Mi ez
 
@@ -97,6 +111,7 @@ látja; a garázsban vásárlás még nem kész.
 - Az eredeti játék futtatható állományát, könyvtárait, pályáit, modelljeit, textúráit, hangjait vagy bármely más
   tartalmát
 - Másolásvédelem megkerülésére szolgáló eszközöket vagy csalásokat
+- Az újraépített játékhoz átalakított PS2-es autókat és a PS2-es oktatópályát (ezek egy saját lemezből készültek)
 
 ## Jogi tudnivalók
 

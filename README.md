@@ -9,8 +9,22 @@ reconstructed C source, so the game can run on today's systems and be modified.
 
 *A Quick race in the rebuilt exe at 2560 x 1440, with realtime shadows and reflections switched on.*
 
-> This repository currently holds only this description and the preview picture. No source code has been
-> published yet, and no part of the original game will ever be published here.
+> This repository holds this description, the documentation and the **Windows build of the exe** (`release/`).
+> No source code is published, and no part of the original game will ever be published here.
+
+## Download and install (Windows)
+
+1. Download [`release/RcCarsRe.exe`](release/RcCarsRe.exe) and [`release/openxr_loader.dll`](release/openxr_loader.dll)
+   (the DLL is needed only for VR, the game starts without it too).
+2. Copy them into your RC Cars folder, next to the original `RCCARS.exe` (the DVD install or the Steam release).
+   The exe uses that folder's game data; it does not work without an installed copy of the game.
+3. Start `RcCarsRe.exe`. On the first start it writes `RcCarsRe.ini` next to itself with every option and its values.
+   (It can also be started from another folder with `-gamedir "<the game's folder>"`.)
+
+Windows 10 / 11, 64-bit, a Direct3D 11 capable graphics card. The exe is not digitally signed, so Windows SmartScreen
+may warn about an unknown publisher. Checksums: [`release/SHA256SUMS.txt`](release/SHA256SUMS.txt); the third-party
+libraries and their licences: [`release/THIRD_PARTY_LICENSES.txt`](release/THIRD_PARTY_LICENSES.txt). The original
+`RCCARS.exe` and your saves stay untouched; the two exes can be used side by side.
 
 ## What it is
 
@@ -95,6 +109,7 @@ garage purchases are not ready yet.
 
 - The original game's executable, libraries, levels, models, textures, sounds or any other asset
 - Tools for bypassing copy protection, or cheats
+- The PS2 cars and the PS2 tutorial level converted for the rebuilt game (they are made from a privately owned disc)
 
 ## Legal
 

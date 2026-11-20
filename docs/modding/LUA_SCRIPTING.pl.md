@@ -10,7 +10,7 @@ oraz przechowywać własne ustawienia i statystyki. Skrypty nie mogą zmieniać 
 wyjątkiem: skrypt trybu gry (rozdział 6, API 1.4) prowadzi zasady własnych wyścigów (na razie w grze jednoosobowej).
 
 Językiem jest [Lua 5.4](https://www.lua.org/manual/5.4/) (Lua 5.4.9, licencja MIT, zob.
-[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.10**.
+[LUA_LICENSE.txt](LUA_LICENSE.txt)). Ta strona opisuje wersję API **1.14**.
 
 ## 1. Przegląd
 
@@ -93,7 +93,7 @@ Zdefiniuj je jako funkcje globalne. Wszystkie są opcjonalne.
 
 | Funkcja | Zwraca |
 |---|---|
-| `rc.version` | wersja API (`"1.10"`) |
+| `rc.version` | wersja API (`"1.14"`) |
 | `rc.modName` | nazwa moda |
 | `rc.race()` | `{track, trackIndex, laps, time, state, cars, mode, checkpoints}`. `time` = zegar wyścigu z HUD w sekundach (-1 przed startem). `state` = `menu`, `prestart`, `racing`, `paused`, `finished` (gracz 1 dojechał), `results` |
 | `rc.car(i)` | `{index, x, y, z, speed, gear, lap, lapTime, bestLap, raceTime, place, isPlayer, isAi, isGhost, player, finished, name}` lub `nil`. `speed` w km/h; `player` = 1 / 2 dla samochodu gracza; `raceTime` = czas samochodu od startu (zatrzymuje się na mecie); (1.8) `airTime` = sekundy od chwili, gdy koło samochodu ostatnio dotykało ziemi (na ziemi 0), `vy` = prędkość pionowa w m/s (ujemna podczas spadania); u przeciwników oba wynoszą 0; (1.9) `dir` i `up` = osie samochodu do przodu i w górę jako `{x, y, z}`, `spin` = jego prędkość kątowa w rad/s wokół osi świata (u przeciwników 0) |
@@ -334,6 +334,7 @@ rc.registerMode{
   laps = false,                                      -- bez licznika okrążeń (domyślnie: jak checkpoints)
   ai = "script",                                     -- "script": samochody SI słuchają rc.ai; "race": ścigają się
   respawn = false,                                   -- gra nie przywraca samochodów (domyślnie true)
+  hidden = true,                                     -- (1.12) nie ma go w wierszu Mode w Quick race: uruchamia go tylko rc.startRace{mode =}
   hud = {racerList = false, place = false, lap = false, wrongWay = false},   -- części HUD, które tryb ukrywa
 }
 ```
@@ -371,12 +372,19 @@ Zwykłe zdarzenia (`onRaceStart`, `onCollision`, `onFrame`, ...) nadal trafiają
 | `rc.mode.finish(results, title)` | kończy wyścig: wszystkie samochody kończą, potem meta gry i jej strona wyników z tymi wierszami. `results` = `{{car =, place =, text =}, ...}`; `title` (domyślnie nazwa trybu) to nagłówek kolumny tekstu |
 | `rc.mode.holdEnd{seconds =, skippable =}` | po `rc.mode.finish`: strona wyników gry pojawi się `seconds` (domyślnie 20, najwyżej 60) sekund później — na scenę końcową. `skippable = false` (domyślnie): przyciski gracza w tym czasie nic nie robią, menu pauzy się nie otwiera (zamknięcie okna nadal kończy grę). Błąd skryptu albo przeładowanie od razu kończy wstrzymanie |
 | `rc.mode.showResults()` | wstrzymana strona wyników teraz |
+| `rc.mode.holdStart(on)` | (1.13) dopóki `on`, odliczanie startu (3, 2, 1, GO) czeka — na intro przed wyścigiem (ujęcia kamery, teksty); samochody drogowe poziomu w tym czasie już jeżdżą. Wyłącza się wywołaniem z `false`, samo po 90 s klatek gry, po wyjściu z wyścigu albo gdy wyścig trybu pojawia się ponownie (`onModeLoad` i *Jeszcze raz* go zerują: włączaj w `onModeLoad` albo później). Tylko w grze jednoosobowej (w wyścigach sieciowych ignorowane). Zwraca nowy stan; w logu "Game modes: the start's countdown held / released" |
 | `rc.mode.respawn(on)` | przywracanie samochodów przez grę wł. / wył. na ten wyścig (wartość początkowa to `respawn` z `registerMode`). Wyłączone: samochód na boku lub dachu po 2 s staje na koła w miejscu (także gracza), ale nigdzie nie jest przenoszony |
 | `rc.mode.respawnCar(car)` | tryb przywraca samochód na najbliższy punkt linii jazdy SI (działa też przy `respawn = false`) |
 | `rc.setCarTeam(car, n)` | drużyna samochodu (dowolna liczba; `rc.car(i).team`) |
 | `rc.setCar(car, {model =, paint =, physics =})` | samochód zmienia się w inny samochód RC gry: `model` = `"Overkill"`, `"Buggy"` albo `"Warhammer"`, `paint` = 1 .. 4 (malowania garażu), `physics` = `true` (domyślnie: jeździ też z fizyką tego samochodu) albo `false` (tylko wygląd). `rc.setCar(car, nil)`: znowu własny samochód. Samochód zachowuje ulepszenia, dźwięki i ruch |
 | `rc.carName(car)` | nazwa zawodnika |
 | `rc.distance(car1, car2)` | odległość między dwoma samochodami w metrach |
+
+Intro przed startem (1.13):
+
+```lua
+function onModeLoad(info) rc.mode.holdStart(true) end   -- na końcu intro rc.mode.holdStart(false)
+```
 
 `rc.car(i)` ma też (1.4) `team`, `model` (`""` własny), `paint` (0 własne), `frozen` i `contacts`: samochody, których
 dotknął w tej klatce (`{2, 4}`).
@@ -405,9 +413,11 @@ przeszkody, objeżdża ją po wolniejszej stronie przez punkt pośredni i jedzie
 
 | Funkcja | Znaczenie |
 |---|---|
-| `rc.playSound(name, {volume =, loop =, car =, pos =, minDist =, maxDist =, pan =, panTo =})` | dźwięk z uchwytem (`false`, gdy nie gra). `loop = true`: do `rc.stopSound`. `car = i` / `pos = {x, y, z}`: w świecie, przez DirectSound 3D, jak dźwięki samej gry: pełna głośność w promieniu `minDist` (5) metrów od kamery, dalej ciszej, za `maxDist` (60) już nie ciszej, słychać go z jego strony (dźwięk samochodu podąża za nim; na podzielonym ekranie bez kierunku). `pan` = -1 .. 1 albo `panTo = {x, y, z}`: z tej strony, jak widzi kamera. Najwyżej 16 na mod naraz; wszystkie milkną po wyjściu z wyścigu |
+| `rc.playSound(name, {volume =, loop =, car =, pos =, object =, minDist =, maxDist =, pan =, panTo =})` | dźwięk z uchwytem (`false`, gdy nie gra). `loop = true`: do `rc.stopSound`. `car = i` / `pos = {x, y, z}`: w świecie, przez DirectSound 3D, jak dźwięki samej gry: pełna głośność w promieniu `minDist` (5) metrów od kamery, dalej ciszej, za `maxDist` (60) już nie ciszej, słychać go z jego strony (dźwięk samochodu podąża za nim; na podzielonym ekranie bez kierunku). (1.14) `object = "nazwa"`: przy obiekcie poziomu o tej nazwie (instancja poziomu, np. samochód drogowy albo przedmiot) i podąża za nim, jak dźwięk samochodu za samochodem; błąd, gdy poziom nie ma takiego obiektu. `pan` = -1 .. 1 albo `panTo = {x, y, z}`: z tej strony, jak widzi kamera. Najwyżej 16 na mod naraz; wszystkie milkną po wyjściu z wyścigu |
 | `rc.stopSound(handle)` | zatrzymuje go |
 | `rc.soundPlaying(handle)` | `true`, dopóki gra |
+| `rc.object(name)` | (1.14) obiekt poziomu (instancja poziomu według nazwy) w wyścigu: `{x, y, z, roadcar, driving}`; `roadcar` = `true` dla samochodu drogowego, `driving` = `true`, dopóki ten samochód drogowy jedzie swoją trasą (nie stoi i nie jest ukryty); `nil`, gdy poziom nie ma takiego obiektu albo nie ma wyścigu |
+| `rc.roadcarSound(name, on)` | (1.14) `false` wycisza własny dźwięk klasy samochodu drogowego (kanał Roadcar / Roadcar_slow poziomu) dla skryptu, który daje mu własny dźwięk (`rc.playSound(name, {object = ..., loop = true})`); `true` (albo bez argumentu) go przywraca. Zwraca `true`, gdy poziom ma taki samochód drogowy; obowiązuje do wyjścia z poziomu |
 | `rc.listModFiles(folder, pattern)` | własne pliki moda w tym folderze o pasujących nazwach (`*`, `?`), np. `rc.listModFiles("sounds", "hit*.wav")`; puste pliki są pomijane (z ostrzeżeniem) |
 | `rc.levelAmbient(on, music)` | `false` wycisza zapętlone tło dźwiękowe poziomu (pętle tła, morze, strumienie i wodospady; dźwięki jednorazowe, np. uderzenie w przedmiot lub kamień, i głosy zostają, tak jak dźwięki samochodów, efektów i skryptów); `music` = dB muzyki wyścigu (0 jak ustawiono, -100 cisza; muzyka menu się nie zmienia). Wraca po wyjściu z wyścigu, przeładowaniu i zatrzymaniu skryptów moda |
 | `rc.fog{...}` | (1.4) zwraca `true`, gdy mgła gry jest widoczna (Opcje / Wideo: mgła wł.) |
@@ -537,7 +547,8 @@ end
 | Funkcja | Opis |
 |---|---|
 | `rc.registerMenu{id =, name =, onSelect =}` | dodaje przycisk do menu głównego, między Mods a Credits. `name` to tekst lub tabela językowa; `onSelect` uruchamia się po naciśnięciu przycisku. W menu jest miejsce łącznie na dwa takie przyciski (dla wszystkich modów); trzeci jest pomijany z ostrzeżeniem, a wywołanie zwraca `false`. Gdy jest pozycja, przyciski menu są nieco bliżej siebie |
-| `rc.startRace{track =, car =, laps =, mode =}` | uruchamia Szybki wyścig z menu. `track`: jedna z dziesięciu tras gry (`"beach_1"` .. `"country_4"`, wyświetlana nazwa lub 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"` albo identyfikator dodanego samochodu lub karoserii (domyślnie: samochód gracza); `laps`: liczba okrążeń; `mode`: identyfikator trybu zarejestrowanego przez `rc.registerMode` (domyślnie: zwykły wyścig). Zwraca `true`, gdy start trafił do kolejki (następuje w ciągu sekundy), w przeciwnym razie `false` i powód (trwa wyścig, gra sieciowa, nie wybrano gracza) |
+| `rc.startRace{track =, car =, laps =, mode =, paint =}` | uruchamia Szybki wyścig z menu. `track`: jedna z dziesięciu tras gry (`"beach_1"` .. `"country_4"`, wyświetlana nazwa lub 1 .. 10); `car`: 1 .. 3, `"Overkill"` / `"Buggy"` / `"Warhammer"` albo identyfikator dodanego samochodu lub karoserii (domyślnie: samochód gracza); `laps`: liczba okrążeń; `mode`: identyfikator trybu zarejestrowanego przez `rc.registerMode` (domyślnie: zwykły wyścig). Zwraca `true`, gdy start trafił do kolejki (następuje w ciągu sekundy), w przeciwnym razie `false` i powód (trwa wyścig, gra sieciowa, nie wybrano gracza) (1.14) `paint`: lakier samochodu / karoserii, od 1, tak jak liczy go wybór skórki Szybkiego wyścigu (domyślnie: wybór gracza). |
+| `rc.leaveRace()` | (1.14) opuszcza wyścig tak jak *Wyjście* w menu pauzy (nic nie jest zapisywane), na początku następnej klatki; potem wraca menu (`onMenu`). Tylko wyścigi jednego gracza; `false`, gdy nie w takim wyścigu |
 | `rc.addSpin(car, x, y, z)` | zmienia prędkość kątową samochodu o tę wartość (rad/s wokół osi świata), np. żeby gracz mógł obracać samochód w powietrzu. Tylko dla samochodu z własną fizyką (samochody graczy), nie w wyścigu sieciowym; zwraca `true`, gdy wykonano |
 
 ### Dodane trasy (1.10)
@@ -560,6 +571,14 @@ rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"}
 - `name`, `description`: tekst lub tabela językowa.
 
 `rc.startRace{track = "<id>"}` uruchamia dodaną trasę po jej identyfikatorze. Dodanych tras nie ma w Mistrzostwach, Wyścigu z duchem ani na stronach gry wieloosobowej; nie są dla nich prowadzone rekordy ani statystyki.
+
+### Modele moda (1.11)
+
+```lua
+rc.registerModel("MyCan", "RCCarsDB\\my_props.sb")
+```
+
+`rc.registerModel(name, file)` informuje grę, że model `name` znajduje się we własnym pliku bazy danych moda. Poziom może go wtedy użyć jako prototypu swoich instancji: to przedmioty dodanej trasy (puszki, piłki i tak dalej, zbudowane jak modele z `stone.sb` gry, ze skryptem i kanałem dźwiękowym). Nazwa nie może być nazwą modelu samej gry; ścieżka pliku jest względna, tak jak mody podają swoje pliki.
 
 ## 7. Ograniczenia piaskownicy
 

@@ -105,7 +105,7 @@ Read from the PS2 tutorial level (a fenced yard, which the PC game does not have
   stores each one's place and collision shape; it also has a helmet, which the PC game has no model for.
 - **Checkpoints.** The PS2 level has a plain list of points; the PC level has marker objects.
 - **Characters.** The tutorial yard has a boy riding a tricycle (an animated model with its own sound) and two
-  parked pedal karts.
+  karts with a driver, which drive their recorded loops (Kart.StartProfile).
 
 ## Files
 
@@ -118,16 +118,21 @@ Read from the PS2 tutorial level (a fenced yard, which the PC game does not have
 
 ## In the rebuilt PC game
 
-The mod `ps2_cars` adds the PS2 cars to the rebuilt game: Sting and CCCP as new cars with their own physics
+The mod `extension` adds the PS2 game to the rebuilt game: the PS2 tutorial yard as a track (in the main menu the "Tutorial" button with its intro and three tasks, switchable in the mod's config.ini) and the PS2 cars: Sting and CCCP as new cars with their own physics
 values, the other eight bodies as extra bodies of the three PC cars and of Sting. Its Lua functions are described
 in [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md), section 6a. The converted cars are made from the
 user's own PS2 disc and are not distributed.
 
 The mod has its own `config.ini`: `MatrixSystem=1` turns on the slow motion of Matrix mode in jumps (single
-player), `Tutorial=1` is for the PS2 tutorial, which is not converted yet (only its texts are in the mod).
+player), `Tutorial=1` shows the main menu's "Tutorial" button for the PS2 tutorial.
 
-The tutorial level is being converted into a PC level (work in progress): its geometry, textures, baked light,
-checkpoints, the grass (it sways and can be trampled) and the props (as the PC game's own cans, balls, bucket and
-cone) are in; the opponents, the boy on the tricycle and the tutorial's tasks are not yet.
+The tutorial level is converted into a PC level: its geometry, textures, baked light, checkpoints, the grass (it
+sways and can be trampled), the props (the PS2's cans, balls, bucket, cone and helmet as models), the opponents,
+the boy on the tricycle and the two karts on their PS2 paths, and the tutorial's three tasks with the PS2's time
+limits and stunt scoring. The yard now also has its bugs (they walk and flee, as the PC game's spiders do; they do
+not fly off as on the PS2), the litter on the ground, the boy's and the karts' own sounds (pedalling, the bell,
+the kart engines) and the tasks' hints on a key (H or the pad's Back). As everything else, these are made from the
+user's own PS2 disc and are not distributed.
 
-Not brought over: the other PS2 tracks, the air-trick scoring, the PS2 sounds.
+Not brought over: the other PS2 tracks, the air-trick scoring outside the tutorial, the PS2 sounds other than the
+tutorial yard's, the tutorial intro's short demo race and its rewards.

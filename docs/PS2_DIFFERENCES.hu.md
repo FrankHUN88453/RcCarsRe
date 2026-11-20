@@ -108,7 +108,7 @@ A PS2-es oktatópályából kiolvasva (egy bekerített udvar, ami a PC-s játék
 - **Tárgyak.** A lökhető tárgyak a két játékban ugyanazok a fajták: dobozok, labdák, vödrök, bóják. A PS2-es pálya
   mindegyiknek a helyét és az ütközési alakját tárolja; van benne egy sisak is, amihez a PC-s játékban nincs modell.
 - **Ellenőrzőpontok.** A PS2-es pályán egyszerű pontlista van, a PC-sen jelölő objektumok.
-- **Szereplők.** Az oktatóudvaron egy triciklis fiú van (animált modell, saját hanggal) és két álló pedálos gokart.
+- **Szereplők.** Az oktatóudvaron egy triciklis fiú van (animált modell, saját hanggal) és két gokart sofőrrel, amelyek a rögzített körüket járják (Kart.StartProfile).
 
 ## Fájlok
 
@@ -121,17 +121,21 @@ A PS2-es oktatópályából kiolvasva (egy bekerített udvar, ami a PC-s játék
 
 ## Az újraépített PC-s játékban
 
-A `ps2_cars` mod hozzáadja a PS2-es autókat az újraépített játékhoz: a Sting és a CCCP új autóként, saját
+Az `extension` mod hozzáadja a PS2-es játékot az újraépített játékhoz: a PS2-es oktatóudvart pályaként (a főmenüben a "Tutorial" gomb az intróval és a három feladattal, a mod config.ini-jében kikapcsolható) és a PS2-es autókat: a Sting és a CCCP új autóként, saját
 fizikai értékekkel jelenik meg, a többi nyolc karosszéria a három PC-s autó és a Sting további karosszériájaként.
 A Lua-függvényeit a [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md) 6a. fejezete írja le. Az
 átalakított autók a felhasználó saját PS2-es lemezéből készülnek, és nem kerülnek terjesztésre.
 
 A modnak saját `config.ini` fájlja van: a `MatrixSystem=1` bekapcsolja a Matrix mód lassítását ugráskor
-(egyjátékos módban), a `Tutorial=1` a PS2-es oktatópályához tartozik, ami még nincs átalakítva (csak a szövegei
-vannak a modban).
+(egyjátékos módban), a `Tutorial=1` megjeleníti a főmenüben a PS2-es oktatás "Tutorial" gombját.
 
-Az oktatópálya átalakítása PC-s pályává folyamatban van: a geometria, a textúrák, a beleszámolt fény, az
-ellenőrzőpontok, a fű (leng és letaposható) és a tárgyak (a PC-s játék saját dobozaként, labdájaként, vödreként és
-bójájaként) már megvannak; az ellenfelek, a triciklis fiú és az oktatás feladatai még nem.
+Az oktatópálya PC-s pályává van alakítva: a geometria, a textúrák, a beleszámolt fény, az ellenőrzőpontok, a fű
+(leng és letaposható), a tárgyak (a PS2-es dobozok, labdák, vödör, bója és sisak modellként), az ellenfelek, a
+triciklis fiú és a két gokart a PS2-es útvonalán, valamint az oktatás három feladata a PS2-es időkorlátokkal és
+trükkpontozással. Az udvarban most már ott vannak a bogarak is (járkálnak és elmenekülnek, mint a PC-s játék
+pókjai; a PS2-eshez képest nem repülnek el), a földön heverő szemét, a fiú és a gokartok saját hangjai (pedálozás,
+csengő, a gokartok motorja) és a feladatok tippjei egy gombra (H vagy a kontroller Back gombja). Mint minden más,
+ezek is a felhasználó saját PS2-es lemezéből készülnek, és nem kerülnek terjesztésre.
 
-Nem került át: a többi PS2-es pálya, a légi trükkök pontozása, a PS2-es hangok.
+Nem került át: a többi PS2-es pálya, a légi trükkök pontozása az oktatáson kívül, a PS2-es hangok az oktatóudvaréin
+kívül, az oktatás intrójának rövid bemutató versenye és a jutalmai.

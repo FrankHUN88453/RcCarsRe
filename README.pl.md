@@ -10,8 +10,22 @@ od nowa z odtworzonego kodu źródłowego w C, aby gra działała na dzisiejszyc
 *Szybki wyścig w odbudowanym pliku wykonywalnym w rozdzielczości 2560 x 1440, z włączonymi cieniami i odbiciami
 w czasie rzeczywistym.*
 
-> To repozytorium zawiera na razie tylko ten opis i obrazek podglądu. Kod źródłowy nie został jeszcze
-> opublikowany, a żadna część oryginalnej gry nigdy nie zostanie tu opublikowana.
+> To repozytorium zawiera ten opis, dokumentację i **wersję exe dla Windows** (`release/`).
+> Kod źródłowy nie jest publikowany, a żadna część oryginalnej gry nigdy nie zostanie tu opublikowana.
+
+## Pobieranie i instalacja (Windows)
+
+1. Pobierz [`release/RcCarsRe.exe`](release/RcCarsRe.exe) i [`release/openxr_loader.dll`](release/openxr_loader.dll)
+   (DLL jest potrzebna tylko do VR, gra uruchamia się też bez niej).
+2. Skopiuj je do folderu RC Cars, obok oryginalnego `RCCARS.exe` (instalacja z DVD lub wydanie Steam).
+   Exe korzysta z danych gry z tego folderu; bez zainstalowanej gry nie działa.
+3. Uruchom `RcCarsRe.exe`. Przy pierwszym uruchomieniu zapisuje obok siebie `RcCarsRe.ini` ze wszystkimi opcjami i ich
+   wartościami. (Można go też uruchomić z innego folderu: `-gamedir "<folder gry>"`.)
+
+Windows 10 / 11, 64 bity, karta graficzna z Direct3D 11. Exe nie jest podpisany cyfrowo, więc Windows SmartScreen
+może ostrzegać o nieznanym wydawcy. Sumy kontrolne: [`release/SHA256SUMS.txt`](release/SHA256SUMS.txt); biblioteki
+zewnętrzne i ich licencje: [`release/THIRD_PARTY_LICENSES.txt`](release/THIRD_PARTY_LICENSES.txt). Oryginalny
+`RCCARS.exe` i twoje zapisy pozostają nietknięte; obu exe można używać obok siebie.
 
 ## Czym jest ten projekt
 
@@ -98,6 +112,7 @@ hosta widzą wszyscy; zakupy w garażu nie są jeszcze gotowe.
 
 - Pliku wykonywalnego, bibliotek, poziomów, modeli, tekstur, dźwięków ani żadnych innych zasobów oryginalnej gry
 - Narzędzi do obchodzenia zabezpieczeń przed kopiowaniem ani cheatów
+- Samochodów PS2 ani poziomu samouczka PS2 przeniesionych do odtworzonej gry (powstały z prywatnej płyty)
 
 ## Informacje prawne
 
