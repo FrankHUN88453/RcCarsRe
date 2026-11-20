@@ -560,8 +560,8 @@ class RC_OT_export_track(bpy.types.Operator):
                     seg = [pts[i] + (pts[i + 1] - pts[i]) * t for i in range(len(pts) - 1)
                            for t in np.linspace(0, 1, max(2, int(np.linalg.norm(pts[i + 1] - pts[i]) / 0.2) + 1))]
                     P = np.array(seg)
-                    for k, c in enumerate(cps):
-                        d = float(np.min(np.linalg.norm(P - np.array(c), axis=1)))
+                    for k, c in enumerate(cps):     # (across: the export puts both on the ground)
+                        d = float(np.min(np.linalg.norm((P - np.array(c))[:, [0, 2]], axis=1)))
                         if d > 2.5:
                             miss.append('%s misses checkpoint %d by %.1f m' % (ob.name, k + 1, d))
         self.report({'INFO'}, msg)

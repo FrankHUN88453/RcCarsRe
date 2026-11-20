@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.6, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.7, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.6.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.7.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -133,6 +133,10 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.7**: the export refuses two checkpoints with the same number (a Shift+D copy keeps the number) and hidden
+  checkpoints: both counted in the game in their own places, so the race waited for a checkpoint the player could
+  not see while the marker in sight was another one ("can't get second checkpoint at any height or position").
+  The opponent-path warning measures across, as the export puts both on the ground.
 - **0.1.6**: an imported level's overlays (grass, sand and litter laid over the ground, the edges of walls) were
   exported solid and covered what is under them: a material that was alpha blended in the level stays so.
   A checkpoint's marker lies on the ground under it (tilted with it; flat when a corner is off a ledge), not

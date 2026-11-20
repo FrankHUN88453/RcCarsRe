@@ -550,6 +550,23 @@ def object_meshes(context, ob, tex, groups):
         ev.to_mesh_clear()
 
 
+def check_checkpoints(cps):
+    """every checkpoint the game gets must be the one the user sees: two objects with one number (a Shift+D copy
+    keeps its number) or a hidden one would count in the game in their own places - the order is by number, then
+    by name - and the race waits there for a checkpoint the player cannot see (a user's track: "can't get second
+    checkpoint at any height or position")"""
+    nums = {}
+    for o in cps:
+        nums.setdefault(o.rc_track.checkpoint, []).append(o.name)
+    dup = ['%d: %s' % (n, ', '.join(v)) for n, v in sorted(nums.items()) if len(v) > 1]
+    if dup:
+        raise ValueError('more objects have the same checkpoint number (%s) - give each its own number, in order '
+                         'around the lap' % '; '.join(dup))
+    hidden = [o.name for o in cps if not o.visible_get()]
+    if hidden:
+        raise ValueError('hidden checkpoint(s) would count in the game: %s - show or delete them' % ', '.join(hidden))
+
+
 def checkpoints(context):
     cps = sorted((ob.rc_track.checkpoint, ob.name, ob) for ob in context.scene.objects if ob.rc_track.checkpoint)
     return [c[2] for c in cps]
@@ -591,6 +608,7 @@ def export(context, fs, mods_dir, mod, level, name, description, sky_path, sky_r
     if not mod or re.search(r'[\\/:*?"<>|]', mod):
         raise ValueError('give the mod\'s folder name')
     cps = checkpoints(context)
+    check_checkpoints(cps)
     if len(cps) < 2:
         raise ValueError('put at least 2 checkpoints (Add checkpoint; 1 = the start / finish line)')
     if len(cps) > lw.MAX_CHECKPOINTS:
