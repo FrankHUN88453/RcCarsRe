@@ -33,7 +33,8 @@ ACP_RE = re.compile(r'(^|_)ACP\d+', re.I)
 SKY_EXT = ('.hdr', '.exr', '.png', '.dds')
 # the surfaces a material can be (Material.rc_surface): the GLTX surface bits (gmdb.c gltxSurfaceBits) - the car's
 # rolling / landing sounds by them, and dune sand's grip; with none (0) the car's sounds take it for being in the air
-SURFACES = [('AUTO', 'Auto', 'The surface of an imported game texture; asphalt for anything else', -1),
+SURFACES = [('AUTO', 'Auto', 'The surface of an imported game texture; else guessed from the image name (sand, wood, '
+                             'stone, metal, gravel ..), asphalt by default', -1),
             ('ASPHALT', 'Asphalt', '', 0x400), ('SAND', 'Sand', '', 0x20), ('WETSAND', 'Wet sand', '', 0x10),
             ('DUNE', 'Dune sand', 'Deep sand: less grip', 0x40), ('GRAVEL', 'Gravel', '', 0x200),
             ('WOOD', 'Wood', '', 0x80), ('STONE', 'Stone', '', 0x800), ('METAL', 'Metal', '', 0x1000),
@@ -48,6 +49,32 @@ def surface_bits(mat, img):
         return SURFACE_BITS[choice]
     if img is not None and img.get('rc_surface') is not None and int(img['rc_surface']):
         return int(img['rc_surface'])
+    if img is not None:                 # (none known: guessed from the image's name, asphalt else)
+        return surface_from_name(img.name) or DEFAULT_SURFACE
+    return DEFAULT_SURFACE
+
+
+# a texture's surface from its name (the PS2 levels' names, research\ps2\ps2surface.py; 0: none - sky, water, icons)
+NAME_RULES = [
+    (0, r'sky|cloud|backdrop|backgr|forest_back|icon_|^sea|_sea|water|stream|ryaska|star_'),
+    (0x10, r'sand_wet|wet_'),
+    (0x20, r'sand|seabed|samorodok'),
+    (0x200, r'gravel|grnd|ground|grass|musor|cinder|dirt|moss|silt|hay|seno|bog|kochka|jngl|rubbish|underworld'),
+    (0x80, r'wood|pile|beam|ford|lodka|plank|doski|skamya|skamia|polenia|kont_derev|veslo|bochk'),
+    (0x1000, r'met|rust|iron|tin$|hangar|cistern|grate|girder|tower|conduit|vagon|trailer|treiler|btr80|t_64a|'
+             r'refregerator|devisesbox|ventilator|pipe|culinder|gas'),
+    (0x800, r'stone|stoun|rock|kamen|mont|cobble|brick|wall|colu|colo|stair|steps|border|plint|corni|arch|arc_|'
+            r'battlement|lighthouse|plaster|baffle|vault|ceil|cascade|ruins|monument|grave|chimney|ridge'),
+]
+
+
+def surface_from_name(name):
+    n = os.path.splitext(name.lower())[0]
+    if n.startswith('rc_'):
+        n = n[3:]
+    for bits, pat in NAME_RULES:
+        if re.search(pat, n):
+            return bits
     return DEFAULT_SURFACE
 
 
@@ -279,6 +306,11 @@ def object_meshes(context, ob, tex, groups):
             per_mat.setdefault(int(tm[k]) if tm[k] < len(slots) else 0, []).append(k)
         for mi, tris in per_mat.items():
             gid, see = tex.of_material(slots[mi])
+            # an imported two-sided material (the PS2 levels: every face there both ways round, one kept on import):
+            # both sides written again; also an older import's (rc_ material, backface culling off)
+            sm = slots[mi]
+            two = sm is not None and (bool(sm.get('rc_two_sided')) or
+                                      (sm.name.startswith('rc_') and not sm.use_backface_culling))
             g = groups.get((gid, see, collide, water, coll_only))
             if g is None:
                 g = groups[(gid, see, collide, water, coll_only)] = lw.Mesh(water, see and not water and not coll_only,
@@ -296,6 +328,8 @@ def object_meshes(context, ob, tex, groups):
                         c = int(col[V] if point else col[L])
                     corners.append(((-p[0], p[2], p[1]), (uv[L][0], 1.0 - uv[L][1]), (-n[0], n[2], n[1]), c))
                 out.append(corners)
+                if two:     # (the other side too: the collision grid takes only the faces that do not face down)
+                    out.append([(q, t, (-nn[0], -nn[1], -nn[2]), cc_) for q, t, nn, cc_ in reversed(corners)])
             g.add(out, gid)
         return nt
     finally:

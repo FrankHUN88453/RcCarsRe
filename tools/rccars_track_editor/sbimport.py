@@ -165,6 +165,7 @@ def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol):
     mat = bpy.data.materials.new(mname)
     mat.use_nodes = True
     mat.use_backface_culling = not two_sided
+    mat["rc_two_sided"] = bool(two_sided)       # (the track export writes both sides again, as the level had them)
     nt = mat.node_tree
     nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputMaterial')
@@ -228,6 +229,7 @@ def material(key, tex, blended, two_sided=False):
     mat = bpy.data.materials.new(mname)
     mat.use_nodes = True
     mat.use_backface_culling = not two_sided
+    mat["rc_two_sided"] = bool(two_sided)       # (the track export writes both sides again, as the level had them)
     nt = mat.node_tree
     bsdf = nt.nodes.get('Principled BSDF')
     if bsdf is None:

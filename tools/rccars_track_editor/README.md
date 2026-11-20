@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.4, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.5, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.4.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.5.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -133,6 +133,10 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.5**: a PS2 level imported and exported again kept only one side of its faces (they are there both ways round),
+  often the one facing down, which the collision grid leaves out: the cars sank into the ground. Its two-sided
+  materials are written with both sides again. *Auto* surface guesses from the image's name (sand, wood, stone,
+  metal, gravel ..) when the texture has none.
 - **0.1.4**: every exported texture has a surface (the car's sounds and the grip of dune sand go by it): with none
   - as before - the car sounded as if falling while driving. A material's *Surface* (Track export panel) is Auto
   (an imported game texture keeps its own; asphalt otherwise), or sand, wet sand, dune sand, gravel, wood,
