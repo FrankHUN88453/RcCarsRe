@@ -10,7 +10,7 @@ Ami kell hozzá:
 
 - a játék saját, telepített példánya (DVD vagy Steam) és a **RcCarsRe 0.2.0** vagy újabb (ez olvassa a `.hdr` /
   `.exr` égboltot; [kiadások](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.2.zip` ugyanabból a
+- **Blender 4.2** vagy újabb és az **RC Cars Track Editor** addon: `rccars_track_editor-0.1.3.zip` ugyanabból a
   kiadásból (a forrása: [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 Maga a pályafájl (`RCCarsDB\flat_test.sb`) nincs a repóban: az addon a játék egyik saját pályájának másolatára
@@ -79,7 +79,7 @@ A `<mods mappa>\<Mod>\` mappába:
 
 | Fájl | Mi |
 |---|---|
-| `RCCarsDB\<level>.sb` | a pálya: a hálóid, az ütközési rács, az ellenőrzőpontok a jelölőikkel és a rajt, a játék saját formátumában (a játék `urban_1.sb`-jének másolatára építve; annak emberei, hangjai és tárgyai kimaradnak). Az ütköző hálók négyzetes csempékre vágódnak (16 m-től), hogy az ütközési rács kicsi maradjon |
+| `RCCarsDB\<level>.sb` | a pálya: a hálóid, az ütközési rács, az ellenőrzőpontok a jelölőikkel és a rajt, a játék saját formátumában (a játék `urban_1.sb`-jének másolatára építve; annak emberei, hangjai és tárgyai kimaradnak). Az ütközési rács a játék saját felbontásával készül (0,5 m-es cellák); az ütköző hálók négyzetes csempékre vágódnak (8 m-től), hogy kicsi maradjon |
 | `Textures\<level>_<kép>.png` | az anyagok képei (a játék saját textúráját a nevén használja, nem másolja) |
 | `Textures\sky_<level>.exr` (vagy `.hdr` / `.png` / `.dds`) | az égbolt |
 | `scripts\track_<level>.lua` | `rc.registerTrack{...}`: egy mod `scripts` mappájának minden `.lua` fájlja lefut a játék indulásakor, így a pálya megjelenik a Quick race oldalon |

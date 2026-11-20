@@ -9,7 +9,7 @@ You need:
 
 - your own installed copy of RC Cars (DVD or Steam) and **RcCarsRe 0.2.0** or newer (it reads `.hdr` / `.exr`
   skies; [releases](https://github.com/FrankHUN88453/RcCarsRe/releases/latest));
-- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.2.zip` from the same
+- **Blender 4.2** or newer and the **RC Cars Track Editor** add-on: `rccars_track_editor-0.1.3.zip` from the same
   release (its source is in [tools/rccars_track_editor](../../../../tools/rccars_track_editor)).
 
 The level file itself (`RCCarsDB\flat_test.sb`) is not in this repository: the add-on builds it on a copy of one of
@@ -78,7 +78,7 @@ Into `<mods folder>\<Mod>\`:
 
 | File | What |
 |---|---|
-| `RCCarsDB\<level>.sb` | the level: your meshes, the collision grid, the checkpoints with their markers and the start, in the game's own format (built on a copy of the game's `urban_1.sb`; its people, sounds and props are left out). The collidable meshes are cut into square tiles (16 m and up) to keep the collision grid small |
+| `RCCarsDB\<level>.sb` | the level: your meshes, the collision grid, the checkpoints with their markers and the start, in the game's own format (built on a copy of the game's `urban_1.sb`; its people, sounds and props are left out). The collision grid has the game's own resolution (0.5 m voxels); the collidable meshes are cut into square tiles (8 m and up) to keep it small |
 | `Textures\<level>_<image>.png` | the materials' images (a texture of the game itself is used by its name, not copied) |
 | `Textures\sky_<level>.exr` (or `.hdr` / `.png` / `.dds`) | the sky |
 | `scripts\track_<level>.lua` | `rc.registerTrack{...}`: every `.lua` in a mod's `scripts` folder runs when the game starts, so the track is on the Quick race page |

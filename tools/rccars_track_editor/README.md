@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.2, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.3, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.2.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.3.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -116,9 +116,9 @@ small body movements, which a drawn path does not have.
   **Description** (`\n` breaks a line), **Mod** (the mod folder).
 - **Export track to mod** writes into `<mods folder>\<Mod>\`:
   - `RCCarsDB\<level>.sb`: the level, built on a copy of the game's `urban_1.sb` read from your install (its
-    meshes, collision grid, checkpoints and start replaced; its people, sounds and props left out). The collidable
-    meshes are cut into square tiles (16 m and up), because the game's collision grid keeps a bit per face of each
-    mesh in every voxel the mesh reaches;
+    meshes, collision grid, checkpoints and start replaced; its people, sounds and props left out). The collision
+    grid has the game's own resolution (0.5 x 0.9 x 0.5 m voxels); the collidable meshes are cut into square tiles
+    (8 m and up), because the grid keeps a bit per face of each mesh in every voxel the mesh reaches;
   - `Textures\<level>_<image>.png` and `Textures\sky_<level>.hdr / .exr / ..`;
   - `scripts	rack_<level>.lua`: `rc.registerTrack{...}` - the game runs every `.lua` of a mod's `scripts` folder,
     so the track is on the Quick race page at the next start;
@@ -129,6 +129,10 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.3**: a finer collision grid, as the game's own levels have: 0.5 x 0.9 x 0.5 m voxels (were 1 x 1.5 x 1 m);
+  the collidable meshes cut into 8 m tiles and more meshes allowed (up to 1200, beyond the template's room), so the
+  grid's face bits stay small; the voxels' counts a byte each when they fit. A very large track (over 24 million
+  voxels) gets wider cells instead of an error.
 - **0.1.2**: an imported track keeps its baked light: the light maps (`LM_1`) of the PC levels and the vertex
   colours of the PS2 levels, multiplied onto the textures as in the game.
   The water: imported at the height the game draws it (its `Settings\WLOD_<level>_<object>` offset), only its

@@ -17,7 +17,8 @@ import numpy as np
 
 from . import chunks as cc
 
-CELL = (1.0, 1.5, 1.0)              # the collision voxels' size, metres
+CELL = (0.5, 0.9, 0.5)              # the collision voxels' size, metres (the game's levels: 0.5 .. 0.67 across, 0.92 high)
+CELL_BUDGET = 24_000_000            # voxels at most (larger tracks get wider cells)
 MAX_CHECKPOINTS = 256               # (RcCarsRe's race logic: "Too many checkpoints" above it; the original game: 8)
 FLAG_BLEND = 0x1000
 
@@ -135,8 +136,14 @@ def tiles(me, size, most_faces=60000):
     return out
 
 
+MESH_BUDGET = 1200                  # meshes at most (the game's levels have 250 .. 700; each is a draw call)
+
+
 def fit(meshes, room):
-    """the collidable meshes cut into tiles as small as the template's room allows (8 m and up)"""
+    """the collidable meshes cut into tiles as small as MESH_BUDGET allows (8 m and up): the collision grid keeps
+    a bit per face of a mesh in every voxel it reaches, so big meshes in fine voxels make it large (meshes beyond
+    the template's room become copies of a container, build_level)"""
+    room = max(room, MESH_BUDGET)
     solid = [m for m in meshes if m.collide and m.f]
     other = [m for m in meshes if not (m.collide and m.f) and m.f]
     size = 8.0
@@ -364,7 +371,14 @@ def collision_grid(meshes):
     pts = np.array([v for m in cm for v in m.v], dtype=float)
     lo, hi = pts.min(0) - 2.0, pts.max(0) + 2.0
     lo[1], hi[1] = pts[:, 1].min() - 1.0, pts[:, 1].max() + 4.0
-    n = [max(1, int(math.ceil((hi[k] - lo[k]) / CELL[k]))) for k in range(3)]
+    size = list(CELL)
+    n = [max(1, int(math.ceil((hi[k] - lo[k]) / size[k]))) for k in range(3)]
+    if n[0] * n[1] * n[2] > CELL_BUDGET:
+        # (a very large track: the cells grow across, the height's stay - the grid's memory in the game is 6 bytes
+        # a cell, so it stays within CELL_BUDGET)
+        f = math.sqrt(n[0] * n[1] * n[2] / CELL_BUDGET)
+        size[0], size[2] = size[0] * f, size[2] * f
+        n = [max(1, int(math.ceil((hi[k] - lo[k]) / size[k]))) for k in range(3)]
     cell = [(hi[k] - lo[k]) / n[k] for k in range(3)]
     cells = {}
     for m in cm:
@@ -385,8 +399,6 @@ def collision_grid(meshes):
                             bits = e[m.id] = (m, bytearray(nb))
                         bits[1][fi >> 3] |= 1 << (fi & 7)
     ncell = n[0] * n[1] * n[2]
-    if ncell > 40_000_000:
-        raise ValueError('the track is too large for the collision grid (%d voxels)' % ncell)
     counts = np.zeros(ncell, dtype='<u2')
     obj, nfaces, bits = [], [], bytearray()
     for c in sorted(cells):
@@ -397,14 +409,17 @@ def collision_grid(meshes):
             obj.append(mid)
             nfaces.append(len(m.f))
             bits += b
+    # the counts a byte each when none is above 255: the chunk 0x809b, which the game reads as well (mod.c 0x424e90:
+    # MODB_COLL_STARTVOX as bytes) - half the size of 0x809d's 16-bit ones
+    small = counts.max() <= 255 if ncell else True
     return {0x98: (struct.pack('<3I', *n), struct.pack('<I', 3)),
             0x99: (struct.pack('<3f', *lo), None),
             0x9a: (struct.pack('<3f', *hi), None),
             0x9e: (struct.pack('<I', len(obj)), None),
-            0x9d: (counts.tobytes(), None),
+            0x9d: (counts.astype('<u1').tobytes() if small else counts.tobytes(), None, 0x809b if small else None),
             0x9c: (struct.pack('<%dH' % len(obj), *obj), None),
             0x9f: (struct.pack('<%dI' % len(nfaces), *nfaces), struct.pack('<I', len(nfaces))),
-            0x00: (bytes(bits), struct.pack('<I', len(bits)))}, n
+            0x00: (bytes(bits), struct.pack('<I', len(bits)))}, (n, cell)
 
 
 def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start, yaw):
@@ -462,8 +477,9 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     plan[id(root)] = {'trs': ident, 'below': allv, 'newid': 0, 'extra': extra}
     # ---- the collision grid
     coll = kids(model, 'COLL')[0]
-    rep, ngrid = collision_grid(meshes)
-    plan[id(coll)] = {'chunks': [Raw(k.tag, rep[k.id][0], rep[k.id][1]) if k.id in rep else k
+    rep, (ngrid, cellsize) = collision_grid(meshes)
+    plan[id(coll)] = {'chunks': [Raw((rep[k.id][2] if len(rep[k.id]) > 2 and rep[k.id][2] else k.tag), rep[k.id][0],
+                                     rep[k.id][1]) if k.id in rep else k
                                  for k in coll.children if k.kind != cc.OBJ]}
     # ---- the rest: no people, sounds or visibility sets of the template; our start, checkpoints; no props
     for k in kids(model):
@@ -487,5 +503,5 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     if not back:
         raise ValueError('the written level does not parse')
     return bytes(out), {'meshes': len(meshes), 'faces': sum(len(m.f) for m in meshes),
-                        'textures': len(texnames), 'grid': ngrid, 'room': len(conts), 'tile': tile,
+                        'textures': len(texnames), 'grid': ngrid, 'cell': cellsize, 'room': len(conts), 'tile': tile,
                         'added': len(extra)}
