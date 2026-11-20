@@ -10,12 +10,12 @@ od nowa z odtworzonego kodu źródłowego w C, aby gra działała na dzisiejszyc
 *Szybki wyścig w odbudowanym pliku wykonywalnym w rozdzielczości 2560 x 1440, z włączonymi cieniami i odbiciami
 w czasie rzeczywistym.*
 
-> To repozytorium zawiera ten opis, dokumentację i **wersję exe dla Windows** (`release/`).
+> To repozytorium zawiera ten opis i dokumentację; **wersja exe dla Windows** jest na stronie [Releases](https://github.com/FrankHUN88453/RcCarsRe/releases/latest).
 > Kod źródłowy nie jest publikowany, a żadna część oryginalnej gry nigdy nie zostanie tu opublikowana.
 
 ## Pobieranie i instalacja (Windows)
 
-1. Pobierz [`release/RcCarsRe.exe`](release/RcCarsRe.exe) i [`release/openxr_loader.dll`](release/openxr_loader.dll)
+1. Pobierz `RcCarsRe.exe` i `openxr_loader.dll` z najnowszego [wydania](https://github.com/FrankHUN88453/RcCarsRe/releases/latest)
    (DLL jest potrzebna tylko do VR, gra uruchamia się też bez niej).
 2. Skopiuj je do folderu RC Cars, obok oryginalnego `RCCARS.exe` (instalacja z DVD lub wydanie Steam).
    Exe korzysta z danych gry z tego folderu; bez zainstalowanej gry nie działa.
@@ -23,8 +23,8 @@ w czasie rzeczywistym.*
    wartościami. (Można go też uruchomić z innego folderu: `-gamedir "<folder gry>"`.)
 
 Windows 10 / 11, 64 bity, karta graficzna z Direct3D 11. Exe nie jest podpisany cyfrowo, więc Windows SmartScreen
-może ostrzegać o nieznanym wydawcy. Sumy kontrolne: [`release/SHA256SUMS.txt`](release/SHA256SUMS.txt); biblioteki
-zewnętrzne i ich licencje: [`release/THIRD_PARTY_LICENSES.txt`](release/THIRD_PARTY_LICENSES.txt). Oryginalny
+może ostrzegać o nieznanym wydawcy. Sumy kontrolne: `SHA256SUMS.txt` w wydaniu; biblioteki
+zewnętrzne i ich licencje: `THIRD_PARTY_LICENSES.txt` w wydaniu. Oryginalny
 `RCCARS.exe` i twoje zapisy pozostają nietknięte; obu exe można używać obok siebie.
 
 ## Czym jest ten projekt

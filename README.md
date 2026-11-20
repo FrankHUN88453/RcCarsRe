@@ -9,12 +9,12 @@ reconstructed C source, so the game can run on today's systems and be modified.
 
 *A Quick race in the rebuilt exe at 2560 x 1440, with realtime shadows and reflections switched on.*
 
-> This repository holds this description, the documentation and the **Windows build of the exe** (`release/`).
+> This repository holds this description and the documentation; the **Windows build of the exe** is on the [Releases](https://github.com/FrankHUN88453/RcCarsRe/releases/latest) page.
 > No source code is published, and no part of the original game will ever be published here.
 
 ## Download and install (Windows)
 
-1. Download [`release/RcCarsRe.exe`](release/RcCarsRe.exe) and [`release/openxr_loader.dll`](release/openxr_loader.dll)
+1. Download `RcCarsRe.exe` and `openxr_loader.dll` from the latest [release](https://github.com/FrankHUN88453/RcCarsRe/releases/latest)
    (the DLL is needed only for VR, the game starts without it too).
 2. Copy them into your RC Cars folder, next to the original `RCCARS.exe` (the DVD install or the Steam release).
    The exe uses that folder's game data; it does not work without an installed copy of the game.
@@ -22,8 +22,8 @@ reconstructed C source, so the game can run on today's systems and be modified.
    (It can also be started from another folder with `-gamedir "<the game's folder>"`.)
 
 Windows 10 / 11, 64-bit, a Direct3D 11 capable graphics card. The exe is not digitally signed, so Windows SmartScreen
-may warn about an unknown publisher. Checksums: [`release/SHA256SUMS.txt`](release/SHA256SUMS.txt); the third-party
-libraries and their licences: [`release/THIRD_PARTY_LICENSES.txt`](release/THIRD_PARTY_LICENSES.txt). The original
+may warn about an unknown publisher. Checksums: `SHA256SUMS.txt` in the release; the third-party
+libraries and their licences: `THIRD_PARTY_LICENSES.txt` in the release. The original
 `RCCARS.exe` and your saves stay untouched; the two exes can be used side by side.
 
 ## What it is
