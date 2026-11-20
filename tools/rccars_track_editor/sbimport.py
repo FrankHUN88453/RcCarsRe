@@ -131,6 +131,8 @@ class Textures:
             self.missing.add(name)
         else:
             img['rc_surface'] = self.surface(index)
+            d = g.get(0x08, cc.DWORD)               # (the texture's flags: clamp, light map ..; the export keeps them)
+            img['rc_gltx_flags'] = int(d.dwords()[3]) if d and len(d.dwords()) > 3 else 0
         return img
 
     def surface(self, index):
@@ -155,17 +157,21 @@ def _multiply(nt, a, b, x):
     return mix.outputs[2]
 
 
-def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol):
+def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol, mix=None):
     """the game's look of a level face: the base texture x its light map (LM_1, the second UV layer) x the baked
-    vertex colours (the PS2 levels' light), unlit - the game draws its levels so (stage 1 MODULATE, no lights)"""
-    mname = 'rc_%s%s%s%s%s' % (key or 'white', '__' + lm_key if lm_key else '', '_vc' if vcol else '',
-                               '_blend' if blended else '', '_2s' if two_sided else '')
+    vertex colours (the PS2 levels' light), unlit - the game draws its levels so (stage 1 MODULATE, no lights).
+    mix: (mask key, mask image, second key, second image) of a blended ground: BAS1 x mask + BAS2 x (1 - mask), the
+    mask's and the second texture's coordinates the UV maps ALP1 and BAS2"""
+    mname = 'rc_%s%s%s%s%s%s' % (key or 'white', '__' + mix[2] + '__' + mix[0] if mix else '',
+                                 '__' + lm_key if lm_key else '', '_vc' if vcol else '',
+                                 '_blend' if blended else '', '_2s' if two_sided else '')
     if mname in bpy.data.materials:
         return bpy.data.materials[mname]
     mat = bpy.data.materials.new(mname)
     mat.use_nodes = True
     mat.use_backface_culling = not two_sided
     mat["rc_two_sided"] = bool(two_sided)       # (the track export writes both sides again, as the level had them)
+    mat["rc_blend"] = bool(blended)             # (the mesh was alpha blended: the export keeps it so - grass, sand decals)
     nt = mat.node_tree
     nt.nodes.clear()
     out = nt.nodes.new('ShaderNodeOutputMaterial')
@@ -186,6 +192,28 @@ def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol):
         if blended or tex.get('rc_alpha'):
             alpha = node.outputs['Alpha']
         mat['rc_base'] = tex.name               # (the track export's base image: not the light map)
+    if mix and mix[1] is not None and mix[3] is not None and colour is not None:
+        nodes = {}
+        for i, (lname, img) in enumerate((('ALP1', mix[1]), ('BAS2', mix[3]))):
+            n = nt.nodes.new('ShaderNodeTexImage')
+            n.image = img
+            n.location = (-500, 550 + 300 * i)
+            u = nt.nodes.new('ShaderNodeUVMap')
+            u.uv_map = lname
+            u.location = (-750, 550 + 300 * i)
+            nt.links.new(u.outputs['UV'], n.inputs['Vector'])
+            nodes[lname] = n
+        bw = nt.nodes.new('ShaderNodeRGBToBW')
+        bw.location = (-250, 600)
+        nt.links.new(nodes['ALP1'].outputs['Color'], bw.inputs['Color'])
+        mx = nt.nodes.new('ShaderNodeMixRGB')
+        mx.location = (-100, 400)
+        nt.links.new(bw.outputs['Val'], mx.inputs['Fac'])             # (Fac 1: BAS1, 0: BAS2)
+        nt.links.new(nodes['BAS2'].outputs['Color'], mx.inputs['Color1'])
+        nt.links.new(colour, mx.inputs['Color2'])
+        colour = mx.outputs['Color']
+        mat['rc_alp1'] = mix[1].name            # (the track export writes the layers again)
+        mat['rc_bas2'] = mix[3].name
     if lm_img is not None:
         lm = nt.nodes.new('ShaderNodeTexImage')
         lm.image = lm_img
@@ -194,6 +222,7 @@ def lit_material(key, tex, blended, two_sided, lm_key, lm_img, vcol):
         uv2.uv_map = 'LM_1'
         uv2.location = (-750, -50)
         nt.links.new(uv2.outputs['UV'], lm.inputs['Vector'])
+        mat['rc_lm'] = lm_img.name              # (the track export writes the light map layer again)
         colour = _multiply(nt, colour, lm.outputs['Color'], -150) if colour is not None else lm.outputs['Color']
     if vcol:
         va = nt.nodes.new('ShaderNodeVertexColor')
@@ -230,6 +259,7 @@ def material(key, tex, blended, two_sided=False):
     mat.use_nodes = True
     mat.use_backface_culling = not two_sided
     mat["rc_two_sided"] = bool(two_sided)       # (the track export writes both sides again, as the level had them)
+    mat["rc_blend"] = bool(blended)             # (the mesh was alpha blended: the export keeps it so - grass, sand decals)
     nt = mat.node_tree
     bsdf = nt.nodes.get('Principled BSDF')
     if bsdf is None:
@@ -277,7 +307,7 @@ def build_mesh(mesh, matrix, tex):
     vcols = list(vc.dwords()) if vc is not None and vc.kind == cc.DWORD else None
     if vcols is not None and len(vcols) != len(co):
         vcols = None
-    faces, face_uv, face_lm, mat_idx, slots = [], [], [], [], []
+    faces, face_uv, face_lm, face_al, face_b2, mat_idx, slots = [], [], [], [], [], [], []
     seen = set()
     two_sided = False
     for f in flist.children:
@@ -294,38 +324,44 @@ def build_mesh(mesh, matrix, tex):
             two_sided = True
             continue
         seen.add(fk)
-        texi, ti, lmi, li = None, None, None, None
+        # the layers: BAS1 the texture, LM_1 the light map, ALP1 + BAS2 a blended ground's mask and second texture
+        # (the game: (BAS1 x mask + BAS2 x (1 - mask)) x light map; drv3d.c 0x463e70)
+        lay = {}
         layers = f.get(0x3a, cc.LIST)
         for layer in (layers.children if layers else ()):
             ch = layer.get(0x3d, cc.DWORD)
             cn = ch.dwords()[0].to_bytes(4, 'big') if ch else b''
-            if cn in (b'BAS1', b'LM_1'):
+            if cn in (b'BAS1', b'LM_1', b'ALP1', b'BAS2') and cn not in lay:
                 t = layer.get(0x3c, cc.DWORD)
                 u = layer.get(0x3f, cc.DWORD)
                 if t and u and len(u.dwords()) == len(vi) and max(u.dwords()) < len(uvl):
-                    if cn == b'BAS1':
-                        texi, ti = t.dwords()[0], list(u.dwords())
-                    else:
-                        lmi, li = t.dwords()[0], list(u.dwords())
+                    lay[cn] = (t.dwords()[0], list(u.dwords()))
+        if not (b'ALP1' in lay and b'BAS2' in lay):     # (a mask alone - the coast's foam - is not a blend)
+            lay.pop(b'ALP1', None)
+            lay.pop(b'BAS2', None)
         if reverse:
             vi.reverse()
-            if ti:
-                ti.reverse()
-            if li:
-                li.reverse()
-        key = (tex.key(texi) if texi is not None else None, tex.key(lmi) if lmi is not None else None)
+            for v in lay.values():
+                v[1].reverse()
+        texi, ti = lay.get(b'BAS1', (None, None))
+        lmi, li = lay.get(b'LM_1', (None, None))
+        ali, au = lay.get(b'ALP1', (None, None))
+        b2i, bu = lay.get(b'BAS2', (None, None))
+        key = tuple(tex.key(i) if i is not None else None for i in (texi, lmi, ali, b2i))
         if key not in slots:
             slots.append(key)
         faces.append(vi)
         face_uv.append(ti)
         face_lm.append(li)
+        face_al.append(au)
+        face_b2.append(bu)
         mat_idx.append(slots.index(key))
     if not faces:
         return None
     me = bpy.data.meshes.new(mesh.name() or 'mesh')
     me.from_pydata(co, [], faces)
-    for lname, per_face in (('BAS1', face_uv), ('LM_1', face_lm)):
-        if lname == 'LM_1' and not any(per_face):
+    for lname, per_face in (('BAS1', face_uv), ('LM_1', face_lm), ('ALP1', face_al), ('BAS2', face_b2)):
+        if lname != 'BAS1' and not any(per_face):
             continue
         uv = me.uv_layers.new(name=lname)
         flat = []
@@ -342,13 +378,15 @@ def build_mesh(mesh, matrix, tex):
         ca.data.foreach_set('color_srgb', rgba.astype(np.float32).ravel())
         me.color_attributes.active_color = ca
     index_of = {tex.key(i): i for i in tex.gltx}
-    for key, lm_key in slots:
-        img = tex.image(index_of[key]) if key in index_of else None
-        if lm_key is None and vcols is None:
+    def image(k):
+        return tex.image(index_of[k]) if k in index_of else None
+    for key, lm_key, al_key, b2_key in slots:
+        img = image(key)
+        if lm_key is None and vcols is None and al_key is None:
             me.materials.append(material(key, img, blended, two_sided))
         else:
-            lm_img = tex.image(index_of[lm_key]) if lm_key in index_of else None
-            me.materials.append(lit_material(key, img, blended, two_sided, lm_key, lm_img, vcols is not None))
+            me.materials.append(lit_material(key, img, blended, two_sided, lm_key, image(lm_key), vcols is not None,
+                                             (al_key, image(al_key), b2_key, image(b2_key)) if al_key else None))
     me.polygons.foreach_set('material_index', mat_idx)
     me.validate()
     me.update()
@@ -380,6 +418,37 @@ def water_settings(fs, level, record):
             except Exception:
                 pass
     return None, None
+
+
+# the level's scene marks the game's effects look for by name (the track export writes them back, numbered again):
+# WATER_FALL_<n> a waterfall's mist (waterfall.c, sliders WLOD_<level>_wtr_fall), water_splash_<n> splashes with a
+# sound (wspl.c), water_wave_<n> waves
+MARK_RE = re.compile(r'^(?:(WATER_FALL|water_splash|water_wave)_\d+|(SUN_AF))$')   # (SUN_AF: the sun's place, ShadowDir=marker)
+
+
+def import_marks(fs, tree, level, root, path):
+    """the scene marks (MARK_RE) as empties in a collection '<level> scene marks' (rc_mark: the kind)"""
+    marks = [(k, k.get(0x0b, cc.FLOAT)) for k, _ in cc.iter_objs(tree, 'MARK') if MARK_RE.match(k.name() or '')]
+    marks = [(k, t.floats()) for k, t in marks if t is not None and len(t.floats()) >= 9]
+    if not marks:
+        return
+    col = bpy.data.collections.new(root.name + ' scene marks')
+    root.children.link(col)
+    fall = 'Settings\\WLOD_%s_wtr_fall.ini' % level
+    for k, t in marks:
+        mm = MARK_RE.match(k.name())
+        kind = mm.group(1) or mm.group(2)
+        ob = bpy.data.objects.new(k.name(), None)
+        ob.empty_display_type = 'SINGLE_ARROW' if kind == 'WATER_FALL' else 'SPHERE'
+        ob.empty_display_size = 0.5
+        ob.location = (-t[0], t[2], t[1])
+        ob.rotation_euler = (math.radians(90) if kind == 'WATER_FALL' else 0.0, 0.0, math.radians(-t[7]))
+        ob['rc_mark'] = kind
+        ob['rc_mark_rot'] = [float(t[6]), float(t[7]), float(t[8])]
+        ob['rc_source'] = path
+        if kind == 'WATER_FALL' and fs.exists(fall):
+            ob['rc_mark_settings'] = fall
+        col.objects.link(ob)
 
 
 def import_level(fs, path, cache_dir, collection_name=None):
@@ -449,6 +518,7 @@ def import_level(fs, path, cache_dir, collection_name=None):
         c.hide_render = True
     if not lods.objects:
         bpy.data.collections.remove(lods)
+    import_marks(fs, tree, level, root, path)
     root['rc_level'] = path
     return root, count, tex.missing
 

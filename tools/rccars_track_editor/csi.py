@@ -9,6 +9,28 @@ import struct
 import numpy as np
 
 
+# the header of the game's light maps (beach_1 lightmap___rds_00: RGB 8.8.8, one level; the original's struct also
+# holds a few stale pointers, left 0 here)
+_HEADER = bytes.fromhex(
+    '4d495343 00000000 a0000000 00000000 00020000 00020000 03000000 01000000'
+    '03000000 52474200 00000000 1017080f 00070000 00000000 00000000 00000000'
+    '7f020000 7f020000 00000000 0000f03f 00000000 0000f03f 00000000 00000000'
+    '00000000 0000f03f 00000000 00000000 00000000 0000803f 0000803f 0000803f'
+    '00000000 00000000 0000803f 00020000 00020000 00000000 0000803f 0000803f'.replace(' ', ''))
+
+
+def encode_rgb(rgba):
+    """a CSI picture (RGB 8.8.8, one level, the top row first) of an h x w x 3 / 4 uint8 array: what the levels
+    embed in a GLTX (chunk 0x8232) for their light maps"""
+    h, w = rgba.shape[:2]
+    head = bytearray(_HEADER)
+    struct.pack_into('<II', head, 0x10, w, h)
+    struct.pack_into('<II', head, 0x8c, w, h)
+    px = np.empty((h, w, 3), np.uint8)
+    px[..., 0], px[..., 1], px[..., 2] = rgba[..., 2], rgba[..., 1], rgba[..., 0]     # (B, G, R bytes: R the top)
+    return bytes(head) + px.tobytes()
+
+
 def decode(raw):
     """(width, height, rgba uint8 array h x w x 4) or None"""
     if raw[:4] != b'MISC':

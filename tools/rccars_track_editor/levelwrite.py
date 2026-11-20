@@ -59,10 +59,13 @@ class Mesh:
         self.coll_only = False          # (drawn never: the database's flag 0x800, an invisible wall / floor)
         self.id = 0
 
-    def add(self, tris, gltx):
-        """tris: [(corner, corner, corner)], corner = (position, uv, normal[, colour]); gltx: the texture's id"""
+    def add(self, tris, gltx, more=()):
+        """tris: [(corner, corner, corner)], corner = (position, uv, normal[, colour[, (uv of each more layer)]]);
+        gltx: the BAS1 texture's id; more: the face's further layers [(channel, texture id)] - ALP1 the mask and BAS2
+        the second texture of a blended ground (the game: BAS1 x mask + BAS2 x (1 - mask)), LM_1 a light map"""
         for tri in tris:
             ids, uvs, nrs = [], [], []
+            mores = [[] for _ in more]
             for corner in tri:
                 p, uv, n = corner[:3]
                 col = corner[3] if len(corner) > 3 else None
@@ -81,6 +84,13 @@ class Mesh:
                     k = self.ti[tk] = len(self.t)
                     self.t.append(tk)
                 uvs.append(k)
+                for j in range(len(more)):
+                    xk = (round(float(corner[4][j][0]), 5), round(float(corner[4][j][1]), 5))
+                    k = self.ti.get(xk)
+                    if k is None:
+                        k = self.ti[xk] = len(self.t)
+                        self.t.append(xk)
+                    mores[j].append(k)
                 ln = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2])
                 nrs.append((n[0] / ln, n[1] / ln, n[2] / ln) if ln > 1e-9 else (0.0, 1.0, 0.0))
             if len(set(ids)) < 3:
@@ -95,8 +105,10 @@ class Mesh:
                 ids = [ids[0], ids[2], ids[1]]
                 uvs = [uvs[0], uvs[2], uvs[1]]
                 nrs = [nrs[0], nrs[2], nrs[1]]
+                mores = [[u[0], u[2], u[1]] for u in mores]
                 fn = -fn
-            self.f.append((ids, nrs, tuple(float(x) for x in fn), gltx, uvs))
+            self.f.append((ids, nrs, tuple(float(x) for x in fn), gltx, uvs,
+                           tuple((ch, g, tuple(u)) for (ch, g), u in zip(more, mores))))
 
 
 def subset(me, faces):
@@ -105,7 +117,7 @@ def subset(me, faces):
     out.coll_only = me.coll_only
     vmap, tmap = {}, {}
     for fi in faces:
-        ids, nrs, fn, g, uvs = me.f[fi]
+        ids, nrs, fn, g, uvs, more = me.f[fi]
         ni = []
         for i in ids:
             if i not in vmap:
@@ -113,13 +125,16 @@ def subset(me, faces):
                 out.v.append(me.v[i])
                 out.c.append(me.c[i])
             ni.append(vmap[i])
-        nu = []
-        for t in uvs:
-            if t not in tmap:
-                tmap[t] = len(out.t)
-                out.t.append(me.t[t])
-            nu.append(tmap[t])
-        out.f.append((ni, nrs, fn, g, nu))
+        def remap(ts):
+            r = []
+            for t in ts:
+                if t not in tmap:
+                    tmap[t] = len(out.t)
+                    out.t.append(me.t[t])
+                r.append(tmap[t])
+            return r
+        nu = remap(uvs)
+        out.f.append((ni, nrs, fn, g, nu, tuple((ch, mg, tuple(remap(u))) for ch, mg, u in more)))
     return out
 
 
@@ -157,16 +172,23 @@ def fit(meshes, room):
         size *= 2
 
 
-def face_chunk(idx, normals, fnorm, gltx, uvidx):
-    layer = Raw(0x023b, bytes(write([
-        Raw(0x303c, struct.pack('<I', gltx)), Raw(0x303d, b'1SAB'), Raw(0x303e, struct.pack('<I', 0)),
+def layer_chunk(gltx, channel, uvidx):
+    """a face's texture layer: its texture id, channel (BAS1, ALP1, BAS2, LM_1: a dword, big-endian letters) and the
+    corners' indices into the mesh's coordinates"""
+    return Raw(0x023b, bytes(write([
+        Raw(0x303c, struct.pack('<I', gltx)), Raw(0x303d, channel.encode('ascii')[::-1]),
+        Raw(0x303e, struct.pack('<I', 0)),
         Raw(0x343f, struct.pack('<3I', *uvidx), struct.pack('<I', 3))], bytearray())))
+
+
+def face_chunk(idx, normals, fnorm, gltx, uvidx, more=()):
+    layers = [layer_chunk(gltx, 'BAS1', uvidx)] + [layer_chunk(g, ch, u) for ch, g, u in more]
     return ('face', [
         Raw(0x3419, struct.pack('<3I', *idx), struct.pack('<I', 3)),
         Raw(0x741a, struct.pack('<9f', *[c for n in normals for c in n]), struct.pack('<I', 3)),
         Raw(0x3020, bytes.fromhex('b2b2b2ff')), Raw(0x3025, struct.pack('<I', 0)),
         Raw(0x7027, struct.pack('<3f', *fnorm)), Raw(0x3022, struct.pack('<I', 0)),
-        ('layers', [layer])])
+        ('layers', layers)])
 
 
 def ser(items, out, base):
@@ -239,6 +261,13 @@ def rebuild_mesh(c, p):
             out.append(('faces', k.tag, [face_chunk(*f) for f in (me.f if me else [])]))
         elif tid in (0x15, 0x16) and k.kind == cc.BLOB and below is not None and len(below):
             out.append(bounds_chunks(k, below))
+        elif k.tag == 0x7414 and below is not None and len(below):
+            # the box (bmin, bmax: the game's R3DOBJ bbox, r3dobj.c): tested before the faces by the rays - the
+            # respawn's ray down to the ground (carphys.c 0x508d50) - and by the culling; the template's own was
+            # left here before, so the respawn found no ground and dropped the car from 2 m
+            w = np.asarray(below, dtype=float)
+            lo, hi = w.min(0), w.max(0)
+            out.append(Raw(k.tag, struct.pack('<6f', *lo, *hi), k.extra))
         elif tid == 0x08 and k.kind == cc.DWORD and 'newid' in p:
             w = list(k.dwords())
             w[0] = p['newid']
@@ -249,6 +278,43 @@ def rebuild_mesh(c, p):
     for k, pp in p.get('extra', ()):          # (more containers than the template has: copies of one)
         out.append(('objcopy', k, pp))
     return out
+
+
+def keys_chunk(keys):
+    """an object's key list (chunk 0x0604, the count in its extra): 0x0a05 entries {0x4806 key, 0x4807 value}, the
+    end offsets from 0 (written again where it lands, emit_item)"""
+    out = bytearray()
+    for key, value in keys:
+        p = len(out)
+        out += struct.pack('<HI', 0x0a05, 0)
+        for tag, text in ((0x4806, key), (0x4807, value)):
+            q = len(out)
+            out += struct.pack('<HI', tag, 0) + text.encode('latin1') + b'\0'
+            struct.pack_into('<I', out, q + 2, len(out))
+        struct.pack_into('<I', out, p + 2, len(out))
+    return Raw(0x0604, bytes(out), struct.pack('<I', len(keys)))
+
+
+def cp_mark(tm, name, pos, keys, subs=()):
+    """a checkpoint MARK (a copy of the template's) at pos with its key list and its corridor's sub-marks
+    <name>_1 .. inside it (the game: the corridors run from the mark through its sub-marks to the next checkpoint)"""
+    ch = []
+    for x in tm.children:
+        if x.kind == cc.OBJ:
+            continue
+        if x.id == 0x03:
+            ch.append(Raw(x.tag, name.encode('latin1') + b'\0', x.extra))
+        elif x.id == 0x0b:
+            ch.append(Raw(x.tag, struct.pack('<9f', pos[0], pos[1], pos[2], 1, 1, 1, 0, 0, 0), x.extra))
+        elif (x.tag & 0xfff) == 0x604:
+            continue
+        else:
+            ch.append(x)
+    if keys:
+        ch.append(keys_chunk(keys))
+    for i, q in enumerate(subs):
+        ch.append(cp_mark(tm, '%s_%d' % (name, i + 1), q, keys))
+    return ('copy', tm, ch)
 
 
 def copy_with(k, raws):
@@ -271,7 +337,7 @@ def emit(c, out, base, plan, override=None):
         out += c.extra
     if p is not None and 'gltx' in p:
         # the template's first texture object, once a texture: (name, id)
-        for vi, (vname, vindex, vsurf) in enumerate(p['gltx']):
+        for vi, (vname, vindex, vsurf, vflags, vpic) in enumerate(p['gltx']):
             if vi:
                 struct.pack_into('<I', out, pos + 2, base + len(out))
                 pos = len(out)
@@ -286,11 +352,18 @@ def emit(c, out, base, plan, override=None):
                     w[0] = vindex
                     if len(w) > 4:
                         w[4] = vsurf            # (the surface bits: gmdb.c gltxSurfaceBits)
+                    if len(w) > 3:
+                        w[3] = vflags           # (gmdb.c gltxTexBits: 4 / 8 clamp u / v, 0x1000 a light map ..)
                     write([Raw(k.tag, struct.pack('<%dI' % len(w), *w), k.extra)], out, base)
                 elif k.kind == cc.OBJ:
                     continue                    # (a texture object's own sub-objects: none in the levels)
+                elif vpic is not None and (k.tag & 0xff) in (0x34, 0x31, 0x32, 0x33):
+                    continue                    # (an embedded picture: no file name, its own size)
                 else:
                     write([k], out, base)
+            if vpic is not None:                # (the picture in the database, as the levels' light maps)
+                w_, h_ = struct.unpack_from('<II', vpic, 0x10)
+                write([Raw(0x2431, struct.pack('<II', w_, h_)), Raw(0x8232, vpic)], out, base)
     elif p is not None and 'chunks' in p:
         write(p['chunks'], out, base)           # (every own chunk given anew: the collision grid)
     elif p is not None and 'children' in p:
@@ -330,7 +403,16 @@ def emit_item(k, out, base, plan):
         out += struct.pack('<HI', src.tag, 0)
         if src.extra is not None:
             out += src.extra
-        write(ch, out, base)
+        for it in ch:
+            if isinstance(it, tuple):
+                emit_item(it, out, base, plan)          # (a sub-object: a checkpoint's sub-marks)
+            elif isinstance(it, Raw) and it.tag == 0x0604:
+                p3 = len(out)                           # (a key list: its inner end offsets written again)
+                out += struct.pack('<HI', it.tag, 0) + (it.extra or b'')
+                write(cc.parse(it.payload), out, base)
+                struct.pack_into('<I', out, p3 + 2, base + len(out))
+            else:
+                write([it], out, base)
         struct.pack_into('<I', out, p2 + 2, base + len(out))
     elif isinstance(k, Raw):
         write([k], out, base)
@@ -389,7 +471,7 @@ def collision_grid(meshes):
     for m in cm:
         V = np.asarray(m.v, dtype=float)
         nb = ((len(m.f) - 1) >> 3) + 1
-        for fi, (ids, nrs, fn, g, uvs) in enumerate(m.f):
+        for fi, (ids, nrs, fn, g, uvs, _more) in enumerate(m.f):
             if fn[1] < -0.5:
                 continue
             P = V[ids]
@@ -427,10 +509,15 @@ def collision_grid(meshes):
             0x00: (bytes(bits), struct.pack('<I', len(bits)))}, (n, cell)
 
 
-def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start, yaw):
+def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start, yaw, marks=(), corridors=None,
+                cp_keys=(('width', '6'), ('height', '1.5'), ('expand', '3'))):
     """the new level's bytes. template: the game level's bytes; tmodel: its model's name (urban_1); meshes: Mesh
     objects (their faces' gltx index into texnames); checkpoints: [(x, y, z)] (cp_1 the start / finish line);
-    start: the player's place (x, y, z), yaw in degrees"""
+    start: the player's place (x, y, z), yaw in degrees; marks: [(name, (x, y, z), (rx, ry, rz) degrees)] - MARK
+    objects the game's effects find by name anywhere in the model (WATER_FALL_<n>, water_splash_<n> ..), written
+    after the checkpoints; corridors: per checkpoint the points of its corridor towards the next one (its sub-marks,
+    at most 32 each), None: straight; cp_keys: the checkpoint marks' corridor sizes (width / height / expand:
+    half sizes, metres; the game's levels: width 4 .. 10, expand 3)"""
     if not texnames:
         raise ValueError('no textures')
     if len(checkpoints) > MAX_CHECKPOINTS:
@@ -442,8 +529,8 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
     # ---- the textures: the template's texture 0 written once a name, the others left out
     gl = kids(model, 'GLTX')
     base = [k for k in gl if k.get(0x08, cc.DWORD).dwords()[0] == 0][0]
-    texnames = [t if isinstance(t, tuple) else (t, 0) for t in texnames]
-    plan[id(base)] = {'gltx': [(n, i, sb) for i, (n, sb) in enumerate(texnames)]}
+    texnames = [(tuple(t) + (0, 0, None))[:4] if isinstance(t, tuple) else (t, 0, 0, None) for t in texnames]
+    plan[id(base)] = {'gltx': [(n, i, sb, fl, pic) for i, (n, sb, fl, pic) in enumerate(texnames)]}
     for k in gl:
         if k is not base:
             plan[id(k)] = {'skip': True}
@@ -495,9 +582,12 @@ def build_level(template, tmodel, newname, meshes, texnames, checkpoints, start,
             plan[id(k)] = {'children': []}
         elif k.cls == 'FOLD' and k.name() == 'Checkpoints':
             tm = kids(k, 'MARK')[0]
-            plan[id(k)] = {'children': [copy_with(tm, {0x03: b'cp_%d\0' % (i + 1),
-                                                       0x0b: struct.pack('<9f', p[0], p[1], p[2], 1, 1, 1, 0, 0, 0)})
-                                        for i, p in enumerate(checkpoints)]}
+            plan[id(k)] = {'children': [cp_mark(tm, 'cp_%d' % (i + 1), p, list(cp_keys),
+                                                (corridors[i] if corridors and i < len(corridors) else ())[:32])
+                                        for i, p in enumerate(checkpoints)] +
+                                       [copy_with(tm, {0x03: name.encode('latin1') + b'\0',
+                                                       0x0b: struct.pack('<9f', p[0], p[1], p[2], 1, 1, 1, *r)})
+                                        for name, p, r in marks]}
         elif k.cls == 'INST' and k.name() == 'Player':
             plan[id(k)] = {'trs': list(start) + [1.0, 1.0, 1.0, 0.0, yaw, 0.0], 'below': None}
     plan[id(model)] = {'children': [], 'name': newname}

@@ -373,9 +373,12 @@ def mods_folder(context):
     return bpy.path.abspath(p.mods_dir) or os.path.join(bpy.path.abspath(p.game_dir), 'mods')
 
 
-def export_npc(context, fs, root, folder, write_ini=True):
+def export_npc(context, fs, root, folder, write_ini=True, ground=None):
     """the opponents' paths and the start into root\\CarProfiles\\<folder>\\ and the AI layout into
-    root\\Scripts\\<folder>_ai.ini; (paths, start written, the AI layout's file name or '')"""
+    root\\Scripts\\<folder>_ai.ini; (paths, start written, the AI layout's file name or '').
+    ground (the track export's trackexport.Ground): the paths' points and the start laid on the track's ground - the
+    game starts the cars there (the player from <folder>\\start.dat; the original's is 0.05 m over the ground), so
+    an empty or a path below the ground dropped the car through it and one above dropped it from there"""
     sc = context.scene
     out = os.path.join(root, 'CarProfiles', folder)
     paths = [o for o in sc.objects if o.rc_npc.is_path and o.type == 'CURVE' and o.data.splines]
@@ -386,6 +389,9 @@ def export_npc(context, fs, root, folder, write_ini=True):
     opponents = []
     for ob in paths:
         pts, closed, mul = curve_points(ob)
+        if ground is not None:
+            ys = [ground.y(p) for p in pts]
+            pts = [(p[0], p[1] if y is None else y, p[2]) for p, y in zip(pts, ys)]
         car = int(ob.rc_npc.car)
         try:
             rows, cyc = npc.sample(pts, closed, ob.rc_npc.speed, mul, ride_height=sc.rc_ride_height)
@@ -401,6 +407,9 @@ def export_npc(context, fs, root, folder, write_ini=True):
         g = npc.to_game(fwd)
         yaw = math.degrees(math.atan2(g[0], g[2]))
         pl = npc.to_game(start.matrix_world.translation)
+        y = ground.y(pl) if ground is not None else None
+        if y is not None:
+            pl = (pl[0], y, pl[2])
         with open(os.path.join(out, 'start.dat'), 'wb') as f:
             f.write(npc.start_profile((pl[0], pl[1] + sc.rc_ride_height, pl[2]), yaw))
     ini = ''
@@ -529,9 +538,9 @@ class RC_OT_export_track(bpy.types.Operator):
             return {'CANCELLED'}
         root = os.path.join(mods_folder(context), sc.rc_npc_mod)
 
-        def report(kind, level):
+        def report(kind, level, ground=None):
             if kind == 'npc':
-                n, st, ini = export_npc(context, fs, root, level, True)
+                n, st, ini = export_npc(context, fs, root, level, True, ground)
                 return ini
             return None
         try:

@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.5, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.6, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.5.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.6.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -133,6 +133,30 @@ picture is shown); they can be added by hand in the Lua file (`picture =`, `map 
 
 ## Changes
 
+- **0.1.6**: an imported level's overlays (grass, sand and litter laid over the ground, the edges of walls) were
+  exported solid and covered what is under them: a material that was alpha blended in the level stays so.
+  A checkpoint's marker lies on the ground under it (tilted with it; flat when a corner is off a ledge), not
+  at the empty's height - one placed a little low was hidden under the ground.
+  Running water - objects named *stream*, *wtr_fall* (a waterfall's sheet) or *pool*, at most 8 - is exported as its
+  own mesh under its name, so the game makes it see-through and flowing as on its own tracks. An imported level's
+  effect marks come along as empties (collection *scene marks*): `WATER_FALL_<n>` the waterfall's mist (its settings
+  are copied), `water_splash_<n>` splashes with their sound, `water_wave_<n>`; empties of those names made by hand
+  work too.
+  The soft borders between ground textures come along: such faces of a level carry a second texture and a mask
+  (the game: first x mask + second x (1 - mask)); the import shows them so (UV maps ALP1 and BAS2) and the
+  export writes the three layers again - before, every border was a hard edge.
+  The baked light and shadows (the light maps) come along too: an imported level's light map layer (UV map LM_1)
+  is written again and its picture embedded in the level, as the game's own levels have it (the game also darkens
+  the cars in the shade from it); the textures keep their flags (clamped edges). The sun mark SUN_AF
+  (Shadows=realtime with ShadowDir=marker) is carried over with the other marks.
+  Checkpoints, the start and the respawn: the checkpoints and the start are put on the ground under their empties
+  (0.3 / 0.4 m over it, as the game's levels have them) wherever the empty is, and the corridors between the
+  checkpoints - where the game counts a car on the track, its wrong-way arrow and the race order - follow the first
+  opponent path (else the straight line) over the ground every 6 m (corridor half width 6 m). The meshes' bounding
+  boxes were the template's: the respawn's ray found no ground and dropped the car from 2 m - fixed.
+  The player's start file (CarProfiles\<track>\start.dat, where the race puts the car) and the opponents' path
+  points are laid on the ground as well (with *Export track to mod*): a start empty under the ground dropped the
+  car through the track at the start, one above it dropped the car from there.
 - **0.1.5**: a PS2 level imported and exported again kept only one side of its faces (they are there both ways round),
   often the one facing down, which the collision grid leaves out: the cars sank into the ground. Its two-sided
   materials are written with both sides again. *Auto* surface guesses from the image's name (sand, wood, stone,
