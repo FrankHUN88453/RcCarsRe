@@ -563,12 +563,14 @@ rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"}
   ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
 ```
 
-`rc.registerTrack` dodaje trasę moda do strony Szybkiego wyścigu, po dziesięciu trasach gry (łącznie najwyżej 8 dodanych tras). Wszystko, co wskazuje, jest w formatach samej gry, w folderach moda:
+`rc.registerTrack` dodaje trasę moda do strony Szybkiego wyścigu, po dziesięciu trasach gry (łącznie najwyżej 24 dodane trasy; przed API 1.14: 8). Wszystko, co wskazuje, jest w formatach samej gry, w folderach moda:
 
 - `level`: baza poziomu `RCCarsDB/<level>.sb`, zbudowana jak poziomy gry (folder `Checkpoints` ze znacznikami `cp_1` .. `cp_8`, instancja `Player` i tak dalej).
 - `picture`: tekstura pokazywana przy wyborze trasy (w folderze `Textures` moda). `loading`: duży obraz ekranu ładowania; `shots`: do czterech kolejnych małych obrazów ekranu ładowania. W miejscu pominiętych pokazywany jest `picture`; bez `picture` używane są obrazy pierwszej trasy gry.
 - `ai`: opis przeciwników w folderze `Scripts` moda, napisany jak `Scripts/AIlayouts.ini` gry: sekcje `AIPlayer<n>` i jedna sekcja `AIRace1` z kluczami `PlayerPath`, `AI<n>Path` (nagrane przejazdy w `CarProfiles/`), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` i innymi. Bez `ai` na trasie nie ma przeciwników, a gracz startuje przy instancji `Player` poziomu.
 - `name`, `description`: tekst lub tabela językowa.
+- `map` (1.14): mapa ekranu wyścigu, `{picture = "<tekstura>", points = {{x, z, u, v}, {x, z, u, v}, {x, z, u, v}}}`: obraz w folderze `Textures` moda (512 x 512 jak własne `trackmap_<n>` gry; wyścig pokazuje jego wycinek wokół auta) i trzy miejsca poziomu (x, z w metrach) z ich miejscami na obrazie (u, v: 0 .. 1 od lewego górnego rogu). Trzy punkty tworzą odwzorowanie afiniczne, więc nie mogą leżeć na jednej prostej. Bez `map` wyścig nie pokazuje mapy.
+- (1.14) Nazwy tekstur `picture`, `loading`, `shots` i `map.picture` mogą wskazywać podfolder w `Textures` moda: `"maps\cuba_pic"` (lub `"maps/cuba_pic"`) to `Textures/maps/cuba_pic.png`.
 
 `rc.startRace{track = "<id>"}` uruchamia dodaną trasę po jej identyfikatorze. Dodanych tras nie ma w Mistrzostwach, Wyścigu z duchem ani na stronach gry wieloosobowej; nie są dla nich prowadzone rekordy ani statystyki.
 
@@ -623,6 +625,8 @@ rc.registerModel("MyCan", "RCCarsDB\\my_props.sb")
   świetlnego oraz zapamiętuje przez `rc.stats` najlepszy czas w powietrzu dla każdej trasy i liczbę skoków.
 - `photo_mode`: tryb fotograficzny (P lub przycisk Back / Share / Create pada): wyścig wstrzymany, HUD ukryty, swobodna kamera, F12 / A zdjęcie, rc.stats je liczy (API 1.2).
 - `zombies`: tryb gry (API 1.4): berek / zarażanie przeciw SI, zob. „Tryby gry”.
+- `custom_track`: własna trasa zrobiona w Blenderze (płaski teren, punkty kontrolne, start, przeciwnik SI, niebo
+  HDRI) i poradnik, jak ją zrobić dodatkiem RC Cars Track Editor; jej README mówi, jak ją zbudować.
 
 Minimalny skrypt:
 

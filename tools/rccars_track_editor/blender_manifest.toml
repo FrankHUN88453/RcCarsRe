@@ -1,0 +1,16 @@
+schema_version = "1.0.0"
+
+id = "rccars_track_editor"
+version = "0.1.0"
+name = "RC Cars Track Editor"
+tagline = "RC Cars assets in Blender and the opponents' AI paths"
+maintainer = "RcCarsRe"
+type = "add-on"
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+category = "Import-Export"
+
+[permissions]
+files = "Reads the game folder and its mods, writes AI paths to a mod"

@@ -126,7 +126,7 @@ fizikai értékekkel jelenik meg, a többi nyolc karosszéria a három PC-s aut�
 A Lua-függvényeit a [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md) 6a. fejezete írja le. Az
 átalakított autók a felhasználó saját PS2-es lemezéből készülnek, és nem kerülnek terjesztésre.
 
-A modnak saját `config.ini` fájlja van: a `MatrixSystem=1` bekapcsolja a Matrix mód lassítását ugráskor
+A modnak saját `config.ini` fájlja van: a `[SlowMotion]` `SlowMotion=1` bekapcsolja a Matrix mód lassítását ugráskor
 (egyjátékos módban), a `Tutorial=1` megjeleníti a főmenüben a PS2-es oktatás "Tutorial" gombját.
 
 Az oktatópálya PC-s pályává van alakítva: a geometria, a textúrák, a beleszámolt fény, az ellenőrzőpontok, a fű

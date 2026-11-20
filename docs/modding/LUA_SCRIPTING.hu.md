@@ -571,12 +571,14 @@ rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"}
   ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
 ```
 
-Az `rc.registerTrack` a mod egy pályáját adja a Gyors verseny oldalához, a játék tíz pályája után (összesen legfeljebb 8 hozzáadott pálya). Minden, amit megnevez, a játék saját formátumában van, a mod mappáiban:
+Az `rc.registerTrack` a mod egy pályáját adja a Gyors verseny oldalához, a játék tíz pályája után (összesen legfeljebb 24 hozzáadott pálya; az 1.14-es API előtt 8). Minden, amit megnevez, a játék saját formátumában van, a mod mappáiban:
 
 - `level`: a pálya adatbázisa, `RCCarsDB/<level>.sb`, úgy felépítve, mint a játék pályái (a `Checkpoints` mappa a `cp_1` .. `cp_8` jelölőkkel, a `Player` példány, és így tovább).
 - `picture`: a pálya kiválasztásakor mutatott textúra (a mod `Textures` mappájában). `loading`: a betöltőképernyő nagy képe; `shots`: legfeljebb négy további kis kép a betöltőképernyőre. Ami kimarad, annak a helyén a `picture` áll; `picture` nélkül az első gyári pálya képei látszanak.
 - `ai`: az ellenfelek leírása a mod `Scripts` mappájában, úgy megírva, mint a játék `Scripts/AIlayouts.ini` fájlja: az `AIPlayer<n>` szakaszok és egy `AIRace1` szakasz a `PlayerPath`, `AI<n>Path` (felvett menetek a `CarProfiles/` mappában), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` stb. kulcsokkal. `ai` nélkül a pályán nincs ellenfél, és a játékos a pálya `Player` példányánál indul.
 - `name`, `description`: szöveg vagy nyelvi tábla.
+- `map` (1.14): a verseny képernyőjének térképe, `{picture = "<textúra>", points = {{x, z, u, v}, {x, z, u, v}, {x, z, u, v}}}`: egy kép a mod `Textures` mappájában (512 x 512, mint a játék saját `trackmap_<n>` képei; a verseny ennek egy, az autó körüli ablakát mutatja) és a pálya három helye (x, z méterben) a képen elfoglalt helyükkel (u, v: 0 .. 1 a bal felső saroktól). A három pont affin leképezést ad, ezért nem eshetnek egy egyenesre. `map` nélkül a verseny nem mutat térképet.
+- (1.14) A `picture`, `loading`, `shots` és `map.picture` textúraneve a mod `Textures` mappája alatti almappát is megnevezhet: a `"maps\cuba_pic"` (vagy `"maps/cuba_pic"`) a `Textures/maps/cuba_pic.png`.
 
 Az `rc.startRace{track = "<id>"}` az azonosítójával indít el egy hozzáadott pályát. A hozzáadott pályák nincsenek benne a Bajnokságban, a Szellemversenyben és a többjátékos oldalakon, és nem készül róluk rekord vagy statisztika.
 
@@ -631,6 +633,8 @@ A `docs/modding/examples/` négy teljes modot tartalmaz. Másolj egy mappát a `
   felvillantja a fénysávot, valamint `rc.stats`-szal megőrzi pályánként a legjobb repülési időt és az ugrások számát.
 - `photo_mode`: fotómód (P vagy a kontroller Back / Share / Create gombja): a verseny megáll, a HUD eltűnik, szabad kamera, F12 / A a fotó, az rc.stats számolja őket (API 1.2).
 - `zombies`: játékmód (API 1.4): fogócska / fertőzés a gépi autók ellen, lásd "Játékmódok".
+- `custom_track`: Blenderben készült saját pálya (sík terep, ellenőrzőpontok, rajt, gépi ellenfél, HDRI égbolt) és
+  az útmutató a készítéséhez az RC Cars Track Editor addonnal; a README-je leírja, hogyan kell elkészíteni.
 
 Egy minimális szkript:
 

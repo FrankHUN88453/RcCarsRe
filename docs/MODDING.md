@@ -46,14 +46,16 @@ is read as if that folder were not there.
 
 A mod can also hold Lua scripts (`*.lua` in its root or in `scripts\`): HUD texts and pictures, sounds, its own
 settings page in the Mods screen, and (API 1.1) the camera, fog, sun, lights, gamepad rumble / light bar and its own
-statistics, all local to your PC. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md). A mod can also add a **game mode** of its own (Lua API 1.4: its rules, AI orders, car swaps, end shot): it appears in the Quick race screen's Mode row; the example is `docs\modding\examples\zombies` (copy it into `mods\` to play it).
+statistics, all local to your PC. See [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md). A mod can also add a **game mode** of its own (Lua API 1.4: its rules, AI orders, car swaps, end shot): it appears in the Quick race screen's Mode row; the example is `docs\modding\examples\zombies` (copy it into `mods\` to play it). A mod can also add **tracks of its own**: make the track in Blender with the RC Cars Track Editor add-on, which exports it as a mod; the guide and a sample track are in `docs\modding\examples\custom_track`.
 
 ## Formats
 
 The game asks for its original file names; a mod may give the same file in another format under the same name with
 another extension, and the exe converts it:
 
-- **Textures** (the game asks for `name.csi`): `name.csi`, `name.png` or `name.dds`.
+- **Textures** (the game asks for `name.csi`): `name.csi`, `name.png`, `name.dds`, or a high dynamic range
+  `name.hdr` (Radiance) / `name.exr` (OpenEXR: ZIP, ZIPS, RLE or no compression; not PIZ / DWA) - e.g. an HDRI sky;
+  the game brings its light into range by itself (automatic exposure).
   - Quality folders: a mod may ship `Textures.1\x.csi`, `Textures.2\x.csi` and `Textures.3\x.csi` (each replaces the
     file of the same folder; the game reads the folders of the chosen texture quality, the best first), and / or
     `Textures\x.csi` (stands in for all three; a file in the quality folder itself wins over it). A mod's texture is

@@ -124,7 +124,7 @@ fizyki, pozostałe osiem karoserii jako dodatkowe karoserie trzech samochodów P
 opisuje [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md), rozdział 6a. Przerobione samochody powstają
 z własnej płyty PS2 użytkownika i nie są rozpowszechniane.
 
-Mod ma własny `config.ini`: `MatrixSystem=1` włącza zwolnienie czasu trybu Matrix podczas skoków (gra
+Mod ma własny `config.ini`: `[SlowMotion]` `SlowMotion=1` włącza zwolnienie czasu trybu Matrix podczas skoków (gra
 jednoosobowa), `Tutorial=1` pokazuje w menu głównym przycisk "Tutorial" samouczka z PS2.
 
 Poziom samouczka jest przerobiony na poziom PC: geometria, tekstury, zapisane światło, punkty kontrolne, trawa

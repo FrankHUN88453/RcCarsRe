@@ -562,12 +562,14 @@ rc.registerTrack{id = "tutorial", name = {en = "Tutorial", hu = "Oktatópálya"}
   ai = "tutorial_ai.ini"}                -- Scripts/tutorial_ai.ini of the mod: the opponents
 ```
 
-`rc.registerTrack` adds a track of the mod to the Quick race page, after the game's ten (at most 8 added tracks in all). Everything it names is in the game's own formats, in the mod's folders:
+`rc.registerTrack` adds a track of the mod to the Quick race page, after the game's ten (at most 24 added tracks in all; 8 before API 1.14). Everything it names is in the game's own formats, in the mod's folders:
 
 - `level`: the level database `RCCarsDB/<level>.sb`, built like the game's levels (its `Checkpoints` folder with the marks `cp_1` .. `cp_8`, the `Player` instance, and so on).
 - `picture`: the texture shown when the track is chosen (in the mod's `Textures`). `loading`: the loading screen's big picture; `shots`: up to four more small pictures of the loading screen. What is left out is the `picture`; without `picture` the first game track's pictures are used.
 - `ai`: an AI layout script in the mod's `Scripts` folder, written like the game's `Scripts/AIlayouts.ini`: the `AIPlayer<n>` sections and one section `AIRace1` with `PlayerPath`, `AI<n>Path` (recorded car profiles in `CarProfiles/`), `AI<n>Car`, `AI<n>Ref`, `AI<n>Races` and so on. Without `ai` the track has no opponents and the player starts at the level's `Player` instance.
 - `name`, `description`: a text or a language table.
+- `map` (1.14): the race screen's map, `{picture = "<texture>", points = {{x, z, u, v}, {x, z, u, v}, {x, z, u, v}}}`: a picture in the mod's `Textures` (512 x 512 as the game's own `trackmap_<n>`; the race shows a window of it around the car) and three places of the level (x, z in metres) with their places on the picture (u, v: 0 .. 1 from the top left). The three make an affine mapping, so they must not lie on one line. Without `map` the race shows no map.
+- (1.14) The texture names of `picture`, `loading`, `shots` and `map.picture` may name a folder under the mod's `Textures`: `"maps\cuba_pic"` (or `"maps/cuba_pic"`) is `Textures/maps/cuba_pic.png`.
 
 `rc.startRace{track = "<id>"}` starts an added track by its id. Added tracks are not in the Championship, the Ghost race or the multiplayer pages, and no records or statistics are kept for them.
 
@@ -622,6 +624,8 @@ rc.registerModel("MyCan", "RCCarsDB\\my_props.sb")
 - `photo_mode`: a photo mode (P or the pad's Back / Share / Create): the race paused, the HUD hidden, a free camera, F12 / A for a photo, rc.stats counts them (API 1.2).
 - `zombies`: a game mode (API 1.5): a tag / infection game against the AI or, in a network race, the other
   players; see "Game modes".
+- `custom_track`: a track of your own made in Blender (a flat field, checkpoints, the start, an AI opponent, an HDRI
+  sky) and the guide to making one with the RC Cars Track Editor add-on; its README says how to build it.
 
 A minimal script:
 

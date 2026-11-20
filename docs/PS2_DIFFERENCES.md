@@ -123,7 +123,7 @@ values, the other eight bodies as extra bodies of the three PC cars and of Sting
 in [modding/LUA_SCRIPTING.en.md](modding/LUA_SCRIPTING.en.md), section 6a. The converted cars are made from the
 user's own PS2 disc and are not distributed.
 
-The mod has its own `config.ini`: `MatrixSystem=1` turns on the slow motion of Matrix mode in jumps (single
+The mod has its own `config.ini`: `[SlowMotion]` `SlowMotion=1` turns on the slow motion of Matrix mode in jumps (single
 player), `Tutorial=1` shows the main menu's "Tutorial" button for the PS2 tutorial.
 
 The tutorial level is converted into a PC level: its geometry, textures, baked light, checkpoints, the grass (it

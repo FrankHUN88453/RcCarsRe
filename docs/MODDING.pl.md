@@ -46,14 +46,16 @@ twarze albo strony czcionek): pojawiają się po własnych plikach gry. Wielkoś
 
 Mod może też zawierać skrypty Lua (`*.lua` w katalogu głównym albo w `scripts\`): teksty i obrazy HUD, dźwięki, własną
 stronę ustawień na ekranie Mods, a także (API 1.1) kamerę, mgłę, słońce, światła, wibracje / pasek świetlny pada
-i własne statystyki, wszystko tylko na twoim komputerze. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md). Mod może też dodać własny **tryb gry** (Lua API 1.4: zasady, rozkazy SI, zamiana samochodów, scena końcowa): pojawia się w wierszu Tryb ekranu Szybki wyścig; przykład to `docs\modding\examples\zombies` (aby zagrać, skopiuj go do `mods\`).
+i własne statystyki, wszystko tylko na twoim komputerze. Zob. [modding/LUA_SCRIPTING.pl.md](modding/LUA_SCRIPTING.pl.md). Mod może też dodać własny **tryb gry** (Lua API 1.4: zasady, rozkazy SI, zamiana samochodów, scena końcowa): pojawia się w wierszu Tryb ekranu Szybki wyścig; przykład to `docs\modding\examples\zombies` (aby zagrać, skopiuj go do `mods\`). Mod może też dodać **własne trasy**: zrób trasę w Blenderze dodatkiem RC Cars Track Editor, który eksportuje ją jako mod; poradnik i przykładowa trasa są w `docs\modding\examples\custom_track`.
 
 ## Formaty
 
 Gra prosi o swoje oryginalne nazwy plików; mod może podać ten sam plik w innym formacie pod tą samą nazwą z innym
 rozszerzeniem, a exe go przekształci:
 
-- **Tekstury** (gra prosi o `nazwa.csi`): `nazwa.csi`, `nazwa.png` albo `nazwa.dds`.
+- **Tekstury** (gra prosi o `nazwa.csi`): `nazwa.csi`, `nazwa.png`, `nazwa.dds` albo obraz HDR `nazwa.hdr`
+  (Radiance) / `nazwa.exr` (OpenEXR: ZIP, ZIPS, RLE lub bez kompresji; nie PIZ / DWA) - np. niebo HDRI; gra sama
+  dobiera jasność (automatyczna ekspozycja).
   - Foldery jakości: mod może zawierać `Textures.1\x.csi`, `Textures.2\x.csi` i `Textures.3\x.csi` (każdy zastępuje
     plik w tym samym folderze; gra czyta foldery wybranej jakości tekstur, najlepszy najpierw) i / lub
     `Textures\x.csi` (zastępuje wszystkie trzy; plik w samym folderze jakości ma pierwszeństwo). Tekstura modu jest

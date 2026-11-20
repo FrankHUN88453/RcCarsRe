@@ -46,14 +46,16 @@ benne `BetterSkins\Sound\...`), azt úgy olvassa, mintha az a mappa ott sem lenn
 
 Egy mod Lua-szkripteket is tartalmazhat (`*.lua` a gyökerében vagy a `scripts\` mappában): HUD-szövegek és képek,
 hangok, saját beállítóoldal a Mods képernyőn, valamint (API 1.1) kamera, köd, nap, fények, kontroller-rezgés /
-fénysáv és saját statisztikák, mind csak a saját gépeden. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md). Egy mod saját **játékmódot** is adhat (Lua API 1.4: szabályok, gépi parancsok, autócsere, zárójelenet): a Gyors verseny képernyő Mód sorában jelenik meg; a példa a `docs\modding\examples\zombies` (a játékhoz másold a `mods\` mappába).
+fénysáv és saját statisztikák, mind csak a saját gépeden. Lásd: [modding/LUA_SCRIPTING.hu.md](modding/LUA_SCRIPTING.hu.md). Egy mod saját **játékmódot** is adhat (Lua API 1.4: szabályok, gépi parancsok, autócsere, zárójelenet): a Gyors verseny képernyő Mód sorában jelenik meg; a példa a `docs\modding\examples\zombies` (a játékhoz másold a `mods\` mappába). Egy mod **saját pályákat** is adhat: a pályát Blenderben készítsd el az RC Cars Track Editor addonnal, ami modként exportálja; az útmutató és egy minta pálya a `docs\modding\examples\custom_track` mappában van.
 
 ## Formátumok
 
 A játék az eredeti fájlneveket kéri. Egy mod ugyanazt a fájlt ugyanazon a néven, de más kiterjesztéssel, más
 formátumban is adhatja, és az exe átalakítja:
 
-- **Textúrák** (a játék a `név.csi` fájlt kéri): `név.csi`, `név.png` vagy `név.dds`.
+- **Textúrák** (a játék a `név.csi` fájlt kéri): `név.csi`, `név.png`, `név.dds`, vagy nagy dinamikatartományú
+  `név.hdr` (Radiance) / `név.exr` (OpenEXR: ZIP, ZIPS, RLE vagy tömörítés nélkül; PIZ / DWA nem) - pl. HDRI égbolt;
+  a fényerőt a játék magától hozza tartományba (automatikus expozíció).
   - Minőségi mappák: egy mod adhat `Textures.1\x.csi`, `Textures.2\x.csi` és `Textures.3\x.csi` fájlt (mindegyik az
     ugyanabban a mappában lévő fájlt cseréli; a játék a választott textúraminőség mappáit olvassa, a legjobbat
     először), és / vagy `Textures\x.csi` fájlt (mindhármat helyettesíti; a minőségi mappában lévő fájl erősebb nála).
