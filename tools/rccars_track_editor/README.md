@@ -1,12 +1,12 @@
 # RC Cars Track Editor (Blender add-on)
 
-Version 0.1.0, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
+Version 0.1.1, for Blender 4.2 or newer (tested with 5.3). It reads your own RC Cars installation; it contains no
 game data.
 
 ## Install
 
 Blender > Edit > Preferences > Get Extensions > the menu at the top right > *Install from Disk...* >
-`rccars_track_editor-0.1.0.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
+`rccars_track_editor-0.1.1.zip`. Then in the add-on's preferences (or in the 3D View's sidebar, tab **RC Cars**):
 
 - **Game folder**: the RC Cars folder - the DVD install (with `RCCarsDB`, `Textures.1 .. 3`) or the Steam release
   (with `RCCars.pack`).
@@ -119,6 +119,13 @@ small body movements, which a drawn path does not have.
 
 The track's picture on the Quick race page and its map on the race screen are not made yet (the first track's
 picture is shown); they can be added by hand in the Lua file (`picture =`, `map =`, see LUA_SCRIPTING).
+
+## Changes
+
+- **0.1.1**: with the Steam release (`RCCars.pack`) the textures were not loaded - the imported tracks and models
+  had no textures and the asset library none either: the pack's textures are XOR-encrypted, as the game reads them
+  they are now decrypted.
+- 0.1.0: the first version.
 
 ## Not in this version
 

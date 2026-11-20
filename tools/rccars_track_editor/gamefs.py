@@ -5,6 +5,8 @@ import os
 import struct
 import zipfile
 
+import numpy as np
+
 TEX_DIRS = ('Textures.1', 'Textures.2', 'Textures.3')     # high to low quality
 
 
@@ -12,13 +14,36 @@ def _norm(p):
     return p.replace('/', '\\').strip('\\').lower()
 
 
+def _decrypt(data, key):
+    """the pack's XOR (RCCARS.exe 0x421190): the bytes XORed with the key's bytes in turn; after each pass over the key
+    every key byte becomes k * 3 + 1. A pass ends before the key's next zero byte, so a key byte that has become 0
+    shortens the passes (as the game does)."""
+    k = list(key[:0x1f]) + [0] * (32 - len(key[:0x1f]))
+    n0 = len(key[:0x1f])
+    if not n0:
+        return data
+    parts, total = [], 0
+    while total < len(data):
+        p = 1
+        while p < 32 and k[p]:
+            p += 1
+        parts.append(bytes(k[:p]))
+        total += p
+        for j in range(n0):
+            k[j] = (k[j] * 3 + 1) & 0xff
+    stream = np.frombuffer(b''.join(parts)[:len(data)], dtype=np.uint8)
+    return (np.frombuffer(data, dtype=np.uint8) ^ stream).tobytes()
+
+
 class Pack:
-    """RCCars.pack: a chunk stream root 0x5210 with a list 0x613 of entries {0x4021 name, 0x3022 size,
-    0x3023 offset}; each file is a 0x1431 chunk whose extra dword is its size"""
+    """RCCars.pack: a chunk stream root 0x5210 with the key 0x4014 and a list 0x613 of entries {0x4021 name,
+    0x3022 size, 0x3023 offset, 0x3024 type}; each file is a 0x1431 chunk whose extra dword is its size, its bytes
+    XOR-encrypted when the type has 0x20 (the Steam release's textures)"""
 
     def __init__(self, path):
         self.path = path
         self.entries = {}
+        self.key = b'CREATSTUDIOGames'
         with open(path, 'rb') as f:
             def chunk(pos):
                 f.seek(pos)
@@ -43,21 +68,28 @@ class Pack:
                             f.seek(s)
                             if t2 == 0x4021:
                                 ent['name'] = f.read(e2 - s).split(b'\0')[0].decode('latin1')
-                            elif t2 in (0x3022, 0x3023):
+                            elif t2 in (0x3022, 0x3023, 0x3024):
                                 ent[t2] = struct.unpack('<I', f.read(4))[0]
                             r = e2
                         if 'name' in ent:
-                            self.entries[_norm(ent['name'])] = (ent['name'], ent.get(0x3023, 0), ent.get(0x3022, 0))
+                            self.entries[_norm(ent['name'])] = (ent['name'], ent.get(0x3023, 0), ent.get(0x3022, 0),
+                                                                ent.get(0x3024, 0))
                         e = ee
+                elif tag == 0x4014:                 # the pack's own key (it replaces the default)
+                    f.seek(q)
+                    k = f.read(end - q).split(b'\0')[0]
+                    if k:
+                        self.key = k
                 p = end
 
     def read(self, name):
-        _, off, size = self.entries[name]
+        _, off, size, kind = self.entries[name]
         with open(self.path, 'rb') as f:
             f.seek(off)
             tag, end = struct.unpack('<HI', f.read(6))
             f.read(4)
-            return f.read(size)
+            data = f.read(size)
+        return _decrypt(data, self.key) if kind & 0x20 else data
 
 
 class Source:
